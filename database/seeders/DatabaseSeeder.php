@@ -13,11 +13,36 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $this->command->info('🌱 Starting database seeding...');
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+        // Run seeders in correct order (respecting foreign key constraints)
+        $this->call([
+            TenantSeeder::class,
+            WarehouseSeeder::class,
+            ShopSeeder::class,
+            UserSeeder::class,
+            CategorySeeder::class,
+            BrandSeeder::class,
+            SupplierSeeder::class,
+            ProductSeeder::class,
+            // OrderSeeder::class,
+            // PurchaseSeeder::class,
+            // ExpenseSeeder::class,
         ]);
+
+        $this->command->info('✅ Database seeding completed successfully!');
+        $this->command->newLine();
+        $this->command->info('📊 Summary:');
+        $this->command->info('• Tenants: 3 (Demo companies + Trial)');
+        $this->command->info('• Users: Multiple roles per tenant');
+        $this->command->info('• Warehouses & Shops: Business locations');
+        $this->command->info('• Categories & Brands: Product organization');
+        $this->command->info('• Suppliers: Vendor relationships');
+        $this->command->info('• Products: Sample inventory');
+        $this->command->newLine();
+        $this->command->info('🔐 Default login credentials:');
+        $this->command->info('• TechWorld: admin@techworld.com / password123');
+        $this->command->info('• Fashion Forward: contact@fashionforward.com / password123');
+        $this->command->info('• Green Grocers: manager@greengrocers.com / password123');
     }
 }
