@@ -27,6 +27,117 @@ class AuthController extends BaseController
     }
 
     /**
+     * User login with PIN
+     */
+    public function loginWithPin(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'pin' => 'required|digits_between:4,10',
+            'tenant_code' => 'nullable|string|max:20',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->validationErrorResponse($validator);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            // Resolve tenant if provided
+            $tenant = null;
+            if ($request->tenant_code) {
+                $tenant = Tenant::where('tenant_code', $request->tenant_code)->first();
+                if (!$tenant || !$tenant->isActive()) {
+                    return $this->errorResponse('Tenant not found or inactive', 403);
+                }
+            }
+
+            // Find user by verifying hashed PIN
+            $userQuery = User::query()->whereNotNull('pin')->where('is_active', true);
+            if ($tenant) {
+                $userQuery->where('tenant_id', $tenant->tenant_id);
+            }
+
+            $user = null;
+            foreach ($userQuery->get() as $candidate) {
+                if (Hash::check($request->pin, $candidate->pin)) {
+                    $user = $candidate;
+                    break;
+                }
+            }
+
+            if (!$user) {
+                return $this->errorResponse('Invalid PIN', 401);
+            }
+
+            // Ensure tenant is set/active
+            $tenant = $tenant ?: $user->tenant;
+            if (!$tenant || !$tenant->isActive()) {
+                return $this->errorResponse('Tenant not found or inactive', 403);
+            }
+
+            // Generate session token and create session
+            $sessionToken = Str::random(60);
+            $session = UserSession::createSession(
+                $tenant->tenant_id,
+                $user->user_id,
+                $sessionToken,
+                $request->ip(),
+                $request->userAgent()
+            );
+
+            // Update last login
+            $user->updateLastLogin();
+
+            // Audit
+            \App\Models\AuditLog::logAction(
+                $tenant->tenant_id,
+                'login',
+                'users',
+                $user->user_id,
+                ['method' => 'pin', 'ip_address' => $request->ip(), 'user_agent' => $request->userAgent()]
+            );
+
+            DB::commit();
+
+            $responseData = [
+                'user' => [
+                    'id' => $user->user_id,
+                    'full_name' => $user->full_name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'permissions' => $user->getPermissions(),
+                    'warehouse_id' => $user->warehouse_id,
+                    'shop_id' => $user->shop_id,
+                    'profile_image_url' => $user->profile_image_url
+                ],
+                'tenant' => [
+                    'id' => $tenant->tenant_id,
+                    'name' => $tenant->company_name,
+                    'code' => $tenant->tenant_code,
+                    'logo_url' => $tenant->logo_url,
+                    'primary_color' => $tenant->primary_color,
+                    'secondary_color' => $tenant->secondary_color,
+                    'subscription_plan' => $tenant->subscription_plan,
+                    'is_trial' => $tenant->is_trial,
+                    'trial_days_remaining' => $tenant->getRemainingTrialDays()
+                ],
+                'session' => [
+                    'token' => $sessionToken,
+                    'expires_in' => 60 * 60 * 24 * 7,
+                    'session_id' => $session->session_id
+                ]
+            ];
+
+            return $this->successResponse($responseData, 'Login successful');
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return $this->errorResponse('Login failed: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
      * User login
      */
     public function login(Request $request): JsonResponse
@@ -143,12 +254,12 @@ class AuthController extends BaseController
     {
         try {
             $sessionToken = $request->bearerToken() ?? $request->header('X-Session-Token');
-            
+
             if ($sessionToken) {
                 $session = UserSession::findByToken($sessionToken);
                 if ($session) {
                     $session->terminate();
-                    
+
                     // Log activity
                     if ($this->tenant) {
                         \App\Models\AuditLog::logAction(
@@ -174,7 +285,7 @@ class AuthController extends BaseController
     public function profile(): JsonResponse
     {
         $this->requireTenant();
-        
+
         if (!auth()->check()) {
             return $this->errorResponse('Unauthenticated', 401);
         }
@@ -208,7 +319,7 @@ class AuthController extends BaseController
     public function updateProfile(Request $request): JsonResponse
     {
         $this->requireTenant();
-        
+
         if (!auth()->check()) {
             return $this->errorResponse('Unauthenticated', 401);
         }
@@ -260,7 +371,7 @@ class AuthController extends BaseController
     public function changePassword(Request $request): JsonResponse
     {
         $this->requireTenant();
-        
+
         if (!auth()->check()) {
             return $this->errorResponse('Unauthenticated', 401);
         }
@@ -315,13 +426,13 @@ class AuthController extends BaseController
     public function refreshToken(Request $request): JsonResponse
     {
         $sessionToken = $request->bearerToken() ?? $request->header('X-Session-Token');
-        
+
         if (!$sessionToken) {
             return $this->errorResponse('Session token required', 400);
         }
 
         $session = UserSession::findByToken($sessionToken);
-        
+
         if (!$session || !$session->isActive()) {
             return $this->errorResponse('Invalid or expired session', 401);
         }
@@ -331,7 +442,7 @@ class AuthController extends BaseController
 
             // Generate new token
             $newSessionToken = Str::random(60);
-            
+
             // Update session
             $session->update([
                 'session_token' => $newSessionToken,
@@ -388,7 +499,7 @@ class AuthController extends BaseController
         try {
             // Generate password reset token
             $resetToken = Str::random(60);
-            
+
             // In a real implementation, you would:
             // 1. Store the reset token in a password_resets table with expiration
             // 2. Send email with reset link
@@ -416,13 +527,13 @@ class AuthController extends BaseController
     public function verifySession(Request $request): JsonResponse
     {
         $sessionToken = $request->bearerToken() ?? $request->header('X-Session-Token');
-        
+
         if (!$sessionToken) {
             return $this->errorResponse('Session token required', 400);
         }
 
         $session = UserSession::findByToken($sessionToken);
-        
+
         if (!$session || !$session->isActive()) {
             return $this->errorResponse('Invalid or expired session', 401);
         }
@@ -464,7 +575,7 @@ class AuthController extends BaseController
     public function sessions(): JsonResponse
     {
         $this->requireTenant();
-        
+
         if (!auth()->check()) {
             return $this->errorResponse('Unauthenticated', 401);
         }
@@ -496,7 +607,7 @@ class AuthController extends BaseController
     public function terminateSession(int $sessionId): JsonResponse
     {
         $this->requireTenant();
-        
+
         if (!auth()->check()) {
             return $this->errorResponse('Unauthenticated', 401);
         }
@@ -518,7 +629,7 @@ class AuthController extends BaseController
     public function terminateAllSessions(Request $request): JsonResponse
     {
         $this->requireTenant();
-        
+
         if (!auth()->check()) {
             return $this->errorResponse('Unauthenticated', 401);
         }
@@ -538,4 +649,6 @@ class AuthController extends BaseController
             'terminated_sessions' => $terminatedCount
         ], 'All other sessions terminated successfully');
     }
+
+    
 }

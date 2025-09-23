@@ -31,14 +31,15 @@ use App\Http\Controllers\AuditController;
 */
 
 // Authentication routes
+
 Route::prefix('auth')->group(function () {
     Route::post('login', [AuthController::class, 'login']);
+    Route::post('login-pin', [AuthController::class, 'loginWithPin']);
     Route::post('register', [AuthController::class, 'register']);
     Route::post('logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
     Route::post('refresh', [AuthController::class, 'refresh'])->middleware('auth:sanctum');
     Route::get('me', [AuthController::class, 'me'])->middleware('auth:sanctum');
 });
-
 // Protected routes
 Route::middleware('auth:sanctum')->group(function () {
     
