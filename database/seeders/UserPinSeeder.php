@@ -18,8 +18,9 @@ class UserPinSeeder extends Seeder
         $this->command->info('Clearing all existing PINs...');
         User::query()->update(['pin' => null]);
 
-        // 2. Define role-based PINs for easy testing (use tenant_admin, not super_admin)
+        // 2. Define role-based PINs for easy testing (include super_admin)
         $rolePins = [
+            'super_admin' => '9999',
             'tenant_admin' => '1234',
             'admin' => '5678',
             'warehouse_manager' => '9012',
@@ -48,6 +49,7 @@ class UserPinSeeder extends Seeder
 
         $this->command->info('PIN seeding completed!');
         $this->command->info('Test PINs by role:');
+        $this->command->info('- Super Admin: 9999');
         $this->command->info('- Tenant Admin: 1234');
         $this->command->info('- Admin: 5678');
         $this->command->info('- Warehouse Manager: 9012');

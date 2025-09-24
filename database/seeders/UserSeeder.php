@@ -182,5 +182,25 @@ class UserSeeder extends Seeder
         }
 
         $this->command->info('Created users for all tenants successfully.');
+
+        // Create a global Super Admin with full access (uses first tenant for tenancy linkage)
+        $superAdminEmail = 'superadmin@example.com';
+        $defaultTenant = Tenant::first();
+        if ($defaultTenant && !User::where('email', $superAdminEmail)->exists()) {
+            User::create([
+                'tenant_id' => $defaultTenant->tenant_id,
+                'full_name' => 'Super Admin',
+                'email' => $superAdminEmail,
+                'password' => Hash::make('password123'),
+                'role' => 'super_admin',
+                'is_active' => true,
+                'last_login' => now()->subDay(),
+                'access_level' => 'full',
+                'mfa_enabled' => false,
+                'permissions' => [] // super_admin bypasses permissions checks
+            ]);
+
+            $this->command->info('Created Super Admin: superadmin@example.com / password123');
+        }
     }
 }

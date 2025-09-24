@@ -36,35 +36,39 @@ Route::prefix('auth')->group(function () {
     Route::post('login', [AuthController::class, 'login']);
     Route::post('login-pin', [AuthController::class, 'loginWithPin']);
     Route::post('register', [AuthController::class, 'register']);
-    Route::post('logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
-    Route::post('refresh', [AuthController::class, 'refresh'])->middleware('auth:sanctum');
-    Route::get('me', [AuthController::class, 'me'])->middleware('auth:sanctum');
+    Route::post('logout', [AuthController::class, 'logout']);
+    Route::post('refresh', [AuthController::class, 'refresh']);
+    Route::get('me', [AuthController::class, 'me']);
 });
 // Protected routes
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware([])->group(function () {
     
     // Dashboard routes
     Route::get('dashboard', [DashboardController::class, 'index']);
     Route::get('dashboard/stats', [DashboardController::class, 'stats']);
     
-    // Product routes
-    Route::apiResource('products', ProductController::class);
-    Route::post('products/{id}/stock', [ProductController::class, 'updateStock']);
-    Route::get('products/{id}/variants', [ProductController::class, 'variants']);
+    // Product routes (define specific first to avoid show() catching strings like 'stats')
     Route::get('products/low-stock', [ProductController::class, 'lowStock']);
     Route::get('products/needs-reorder', [ProductController::class, 'needsReorder']);
     Route::get('products/stats', [ProductController::class, 'stats']);
     Route::post('products/bulk-action', [ProductController::class, 'bulkAction']);
+    Route::post('products/{id}/stock', [ProductController::class, 'updateStock'])->whereNumber('id');
+    Route::get('products/{id}/variants', [ProductController::class, 'variants'])->whereNumber('id');
+    Route::apiResource('products', ProductController::class)->parameters([
+        'products' => 'id'
+    ])->where(['id' => '[0-9]+']);
     
-    // Category routes
-    Route::apiResource('categories', CategoryController::class);
+    // Category routes (define specific routes BEFORE apiResource to avoid shadowing)
     Route::get('categories/hierarchy', [CategoryController::class, 'hierarchy']);
     Route::get('categories/roots', [CategoryController::class, 'roots']);
-    Route::get('categories/{id}/children', [CategoryController::class, 'children']);
-    Route::post('categories/{id}/activate', [CategoryController::class, 'activate']);
-    Route::post('categories/{id}/deactivate', [CategoryController::class, 'deactivate']);
     Route::get('categories/stats', [CategoryController::class, 'stats']);
+    Route::get('categories/{id}/children', [CategoryController::class, 'children'])->whereNumber('id');
+    Route::post('categories/{id}/activate', [CategoryController::class, 'activate'])->whereNumber('id');
+    Route::post('categories/{id}/deactivate', [CategoryController::class, 'deactivate'])->whereNumber('id');
     Route::post('categories/bulk-action', [CategoryController::class, 'bulkAction']);
+    Route::apiResource('categories', CategoryController::class)->parameters([
+        'categories' => 'id'
+    ])->where(['id' => '[0-9]+']);
     
     // Supplier routes
     Route::apiResource('suppliers', SupplierController::class);

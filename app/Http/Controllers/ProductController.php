@@ -484,7 +484,8 @@ class ProductController extends BaseController
             'needs_reorder_products' => $query->needReorder()->count(),
             'total_inventory_value' => $query->sum(DB::raw('stock_quantity * cost_price')),
             'total_retail_value' => $query->sum(DB::raw('stock_quantity * selling_price')),
-            'top_categories' => $this->applyTenantScope(Product::query())
+            'top_categories' => Product::query()
+                ->where('products.tenant_id', $this->tenant->tenant_id)
                 ->select('categories.name', DB::raw('COUNT(*) as product_count'))
                 ->join('categories', 'products.category_id', '=', 'categories.category_id')
                 ->groupBy('categories.category_id', 'categories.name')

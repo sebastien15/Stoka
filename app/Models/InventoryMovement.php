@@ -16,23 +16,23 @@ class InventoryMovement extends Model
     protected $fillable = [
         'tenant_id',
         'product_id',
-        'variant_id',
+        'product_variant_id',
         'movement_type',
-        'quantity',
+        'quantity_before',
+        'quantity_change',
+        'quantity_after',
         'reference_id',
         'reference_type',
-        'cost_per_unit',
-        'total_cost',
+        'reason',
         'warehouse_id',
         'shop_id',
-        'notes',
         'created_by'
     ];
 
     protected $casts = [
-        'quantity' => 'integer',
-        'cost_per_unit' => 'decimal:2',
-        'total_cost' => 'decimal:2',
+        'quantity_before' => 'integer',
+        'quantity_change' => 'integer',
+        'quantity_after' => 'integer',
         'created_at' => 'datetime'
     ];
 
@@ -47,9 +47,9 @@ class InventoryMovement extends Model
         return $this->belongsTo(Product::class, 'product_id', 'product_id');
     }
 
-    public function variant(): BelongsTo
+    public function productVariant(): BelongsTo
     {
-        return $this->belongsTo(ProductVariant::class, 'variant_id', 'variant_id');
+        return $this->belongsTo(ProductVariant::class, 'product_variant_id', 'variant_id');
     }
 
     public function warehouse(): BelongsTo
@@ -80,7 +80,7 @@ class InventoryMovement extends Model
 
     public function scopeForVariant($query, $variantId)
     {
-        return $query->where('variant_id', $variantId);
+        return $query->where('product_variant_id', $variantId);
     }
 
     public function scopeForWarehouse($query, $warehouseId)
@@ -158,22 +158,22 @@ class InventoryMovement extends Model
     // Helper methods
     public function isInbound(): bool
     {
-        return $this->quantity > 0;
+        return $this->quantity_change > 0;
     }
 
     public function isOutbound(): bool
     {
-        return $this->quantity < 0;
+        return $this->quantity_change < 0;
     }
 
     public function hasVariant(): bool
     {
-        return $this->variant_id !== null;
+        return $this->product_variant_id !== null;
     }
 
     public function getAbsoluteQuantity(): int
     {
-        return abs($this->quantity);
+        return abs($this->quantity_change);
     }
 
     public function getMovementDirection(): string
@@ -184,7 +184,7 @@ class InventoryMovement extends Model
     public function getDisplayName(): string
     {
         if ($this->hasVariant()) {
-            return $this->variant->getFullName();
+            return $this->productVariant->getFullName();
         }
         
         return $this->product->name;
@@ -193,7 +193,7 @@ class InventoryMovement extends Model
     public function getSku(): string
     {
         if ($this->hasVariant()) {
-            return $this->variant->sku;
+            return $this->productVariant->sku;
         }
         
         return $this->product->sku;
@@ -301,16 +301,16 @@ class InventoryMovement extends Model
         return self::create([
             'tenant_id' => $this->tenant_id,
             'product_id' => $this->product_id,
-            'variant_id' => $this->variant_id,
+            'product_variant_id' => $this->product_variant_id,
             'movement_type' => 'adjustment',
-            'quantity' => -$this->quantity,
+            'quantity_before' => $this->quantity_after,
+            'quantity_change' => -$this->quantity_change,
+            'quantity_after' => $this->quantity_before,
             'reference_type' => 'reversal',
             'reference_id' => $this->movement_id,
-            'cost_per_unit' => $this->cost_per_unit,
-            'total_cost' => -$this->total_cost,
+            'reason' => $reason,
             'warehouse_id' => $this->warehouse_id,
             'shop_id' => $this->shop_id,
-            'notes' => $reason,
             'created_by' => auth()->id() ?? 1
         ]);
     }
@@ -319,9 +319,9 @@ class InventoryMovement extends Model
     public static function recordPurchase(
         int $tenantId,
         int $productId,
-        ?int $variantId,
-        int $quantity,
-        float $costPerUnit,
+        ?int $productVariantId,
+        int $quantityChange,
+        int $quantityBefore,
         int $purchaseId,
         ?int $warehouseId = null,
         ?int $shopId = null,
@@ -330,13 +330,14 @@ class InventoryMovement extends Model
         return self::create([
             'tenant_id' => $tenantId,
             'product_id' => $productId,
-            'variant_id' => $variantId,
+            'product_variant_id' => $productVariantId,
             'movement_type' => 'purchase',
-            'quantity' => $quantity,
+            'quantity_before' => $quantityBefore,
+            'quantity_change' => $quantityChange,
+            'quantity_after' => $quantityBefore + $quantityChange,
             'reference_id' => $purchaseId,
             'reference_type' => 'purchase',
-            'cost_per_unit' => $costPerUnit,
-            'total_cost' => $quantity * $costPerUnit,
+            'reason' => 'Purchase received',
             'warehouse_id' => $warehouseId,
             'shop_id' => $shopId,
             'created_by' => $createdBy ?? auth()->id() ?? 1
@@ -346,9 +347,9 @@ class InventoryMovement extends Model
     public static function recordSale(
         int $tenantId,
         int $productId,
-        ?int $variantId,
-        int $quantity,
-        float $costPerUnit,
+        ?int $productVariantId,
+        int $quantityChange,
+        int $quantityBefore,
         int $orderId,
         ?int $warehouseId = null,
         ?int $shopId = null,
@@ -357,13 +358,14 @@ class InventoryMovement extends Model
         return self::create([
             'tenant_id' => $tenantId,
             'product_id' => $productId,
-            'variant_id' => $variantId,
+            'product_variant_id' => $productVariantId,
             'movement_type' => 'sale',
-            'quantity' => -$quantity,
+            'quantity_before' => $quantityBefore,
+            'quantity_change' => -abs($quantityChange),
+            'quantity_after' => $quantityBefore - abs($quantityChange),
             'reference_id' => $orderId,
             'reference_type' => 'order',
-            'cost_per_unit' => $costPerUnit,
-            'total_cost' => -($quantity * $costPerUnit),
+            'reason' => 'Sale order',
             'warehouse_id' => $warehouseId,
             'shop_id' => $shopId,
             'created_by' => $createdBy ?? auth()->id() ?? 1
@@ -373,23 +375,27 @@ class InventoryMovement extends Model
     public static function recordAdjustment(
         int $tenantId,
         int $productId,
-        ?int $variantId,
+        ?int $productVariantId,
         int $quantityChange,
         string $reason,
         ?int $warehouseId = null,
         ?int $shopId = null,
-        ?int $createdBy = null
+        ?int $createdBy = null,
+        ?int $quantityBefore = null
     ): self {
+        $before = $quantityBefore ?? 0;
         return self::create([
             'tenant_id' => $tenantId,
             'product_id' => $productId,
-            'variant_id' => $variantId,
+            'product_variant_id' => $productVariantId,
             'movement_type' => 'adjustment',
-            'quantity' => $quantityChange,
+            'quantity_before' => $before,
+            'quantity_change' => $quantityChange,
+            'quantity_after' => $before + $quantityChange,
             'reference_type' => 'manual_adjustment',
+            'reason' => $reason,
             'warehouse_id' => $warehouseId,
             'shop_id' => $shopId,
-            'notes' => $reason,
             'created_by' => $createdBy ?? auth()->id() ?? 1
         ]);
     }
