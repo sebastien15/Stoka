@@ -254,16 +254,11 @@ class TenantController extends BaseController
         try {
             DB::beginTransaction();
 
-            // Store data for audit log before deletion
+            // Store data for audit log and log BEFORE deletion to satisfy FK
             $tenantData = $tenant->toArray();
 
-            // Soft delete or hard delete based on business requirements
-            // For now, we'll use hard delete with cascading
-            $tenant->delete();
-
-            // Log the deletion
             \App\Models\AuditLog::create([
-                'tenant_id' => null, // Tenant is deleted
+                'tenant_id' => $id,
                 'user_id' => auth()->id(),
                 'action' => 'tenant_deleted',
                 'table_name' => 'tenants',
@@ -272,6 +267,9 @@ class TenantController extends BaseController
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent()
             ]);
+
+            // Now delete the tenant (cascades will run)
+            $tenant->delete();
 
             DB::commit();
 

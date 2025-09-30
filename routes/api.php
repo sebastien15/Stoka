@@ -96,6 +96,9 @@ Route::middleware([])->group(function () {
     Route::apiResource('shops', ShopController::class);
     
     // User routes
+    Route::get('permissions-catalog', [UserController::class, 'permissionsCatalog']);
+    Route::get('users/{id}/permissions', [UserController::class, 'permissions'])->whereNumber('id');
+    Route::post('users/{id}/permissions', [UserController::class, 'updatePermissions'])->whereNumber('id');
     Route::apiResource('users', UserController::class);
     
     // Tenant routes

@@ -51,6 +51,8 @@ class UserSeeder extends Seeder
                                 'categories.view', 'categories.create', 'categories.edit', 'categories.delete',
                                 'suppliers.view', 'suppliers.create', 'suppliers.edit', 'suppliers.delete',
                                 'orders.view', 'orders.create', 'orders.edit', 'orders.delete',
+                                // Warehouses permissions for tenant admins
+                                'warehouses.view', 'warehouses.create', 'warehouses.edit', 'warehouses.delete',
                                 'reports.view', 'settings.manage'
                             ],
                             'access_level' => 'full',
@@ -152,6 +154,8 @@ class UserSeeder extends Seeder
                                 'categories.view', 'categories.create',
                                 'suppliers.view', 'suppliers.create',
                                 'orders.view', 'orders.create', 'orders.edit',
+                                // Warehouses permissions for tenant admins
+                                'warehouses.view', 'warehouses.create', 'warehouses.edit', 'warehouses.delete',
                                 'reports.view'
                             ],
                             'access_level' => 'full',
