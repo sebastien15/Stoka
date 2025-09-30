@@ -246,8 +246,19 @@ class User extends Authenticatable
             return true;
         }
 
+        // Check individual permissions first
         $permissions = $this->permissions ?? [];
-        return in_array($permission, $permissions);
+        if (in_array($permission, $permissions)) {
+            return true;
+        }
+
+        // Fall back to role-based permissions
+        $role = Role::where('name', $this->role)->first();
+        if ($role) {
+            return $role->hasPermission($permission);
+        }
+
+        return false;
     }
 
     public function hasRole(string $role): bool
@@ -263,6 +274,31 @@ class User extends Authenticatable
     public function getPermissions(): array
     {
         return $this->permissions ?? [];
+    }
+
+    /**
+     * Get permissions granted by the user's role.
+     */
+    public function getRolePermissions(): array
+    {
+        $role = Role::where('name', $this->role)->first();
+        return $role ? $role->getPermissions() : [];
+    }
+
+    /**
+     * Get effective permissions = role permissions + individual user permissions.
+     */
+    public function getAllPermissions(): array
+    {
+        return array_values(array_unique(array_merge($this->getRolePermissions(), $this->getPermissions())));
+    }
+
+    /**
+     * Get Role model instance.
+     */
+    public function roleModel(): ?Role
+    {
+        return Role::where('name', $this->role)->first();
     }
 
     public function addPermission(string $permission): void

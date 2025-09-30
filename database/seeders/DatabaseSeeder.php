@@ -17,6 +17,7 @@ class DatabaseSeeder extends Seeder
 
         // Run seeders in correct order (respecting foreign key constraints)
         $this->call([
+            RoleSeeder::class,
             TenantSeeder::class,
             WarehouseSeeder::class,
             ShopSeeder::class,

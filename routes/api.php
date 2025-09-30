@@ -14,6 +14,7 @@ use App\Http\Controllers\WarehouseController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\TenantController;
+use App\Http\Controllers\RoleController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\NoticeController;
@@ -100,6 +101,12 @@ Route::middleware([])->group(function () {
     Route::get('users/{id}/permissions', [UserController::class, 'permissions'])->whereNumber('id');
     Route::post('users/{id}/permissions', [UserController::class, 'updatePermissions'])->whereNumber('id');
     Route::apiResource('users', UserController::class);
+
+    // Role routes
+    Route::get('roles/permissions-catalog', [RoleController::class, 'permissionsCatalog']);
+    Route::get('roles/{id}/permissions', [RoleController::class, 'permissions'])->whereNumber('id');
+    Route::post('roles/{id}/permissions', [RoleController::class, 'updatePermissions'])->whereNumber('id');
+    Route::apiResource('roles', RoleController::class);
     
     // Tenant routes
     Route::apiResource('tenants', TenantController::class);
