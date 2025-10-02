@@ -168,19 +168,36 @@ class AuthController extends BaseController
                 return $this->errorResponse('Account is deactivated', 403);
             }
 
-            // Get tenant
+            // Get tenant - handle super admin users
             $tenant = null;
-            if ($request->tenant_code) {
-                $tenant = Tenant::where('tenant_code', $request->tenant_code)->first();
-                if (!$tenant || $tenant->tenant_id !== $user->tenant_id) {
-                    return $this->errorResponse('Invalid tenant or user does not belong to this tenant', 403);
+            if ($user->isSuperAdmin()) {
+                // Super admin can login with any tenant or without tenant
+                if ($request->tenant_code) {
+                    $tenant = Tenant::where('tenant_code', $request->tenant_code)->first();
+                    if (!$tenant || !$tenant->isActive()) {
+                        return $this->errorResponse('Invalid tenant or tenant is inactive', 403);
+                    }
+                } else {
+                    // Super admin without tenant_code - use first active tenant or create a default response
+                    $tenant = Tenant::where('status', 'active')->first();
+                    if (!$tenant) {
+                        return $this->errorResponse('No active tenants found', 403);
+                    }
                 }
             } else {
-                $tenant = $user->tenant;
-            }
+                // Regular users must belong to a tenant
+                if ($request->tenant_code) {
+                    $tenant = Tenant::where('tenant_code', $request->tenant_code)->first();
+                    if (!$tenant || $tenant->tenant_id !== $user->tenant_id) {
+                        return $this->errorResponse('Invalid tenant or user does not belong to this tenant', 403);
+                    }
+                } else {
+                    $tenant = $user->tenant;
+                }
 
-            if (!$tenant || !$tenant->isActive()) {
-                return $this->errorResponse('Tenant not found or inactive', 403);
+                if (!$tenant || !$tenant->isActive()) {
+                    return $this->errorResponse('Tenant not found or inactive', 403);
+                }
             }
 
             // Generate session token
