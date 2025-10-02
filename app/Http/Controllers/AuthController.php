@@ -667,5 +667,222 @@ class AuthController extends BaseController
         ], 'All other sessions terminated successfully');
     }
 
+    /**
+     * Public user registration with automatic tenant creation
+     */
+    public function register(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'full_name' => 'required|string|max:150',
+            'email' => 'required|email|max:150|unique:users,email',
+            'password' => 'required|string|min:8|confirmed',
+            'phone_number' => 'nullable|string|max:20',
+            'address' => 'nullable|string',
+            'company_name' => 'required|string|max:150',
+            'business_type' => 'nullable|string|max:100',
+            'website_url' => 'nullable|url|max:255',
+            'city' => 'nullable|string|max:100',
+            'state' => 'nullable|string|max:100',
+            'postal_code' => 'nullable|string|max:20',
+            'country' => 'nullable|string|max:100',
+            'industry' => 'nullable|string|max:100',
+            'company_size' => 'nullable|in:small,medium,large,enterprise'
+        ]);
+
+        if ($validator->fails()) {
+            return $this->validationErrorResponse($validator);
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $userData = $validator->validated();
+            $userData['password'] = Hash::make($userData['password']);
+            $userData['is_active'] = true;
+            $userData['role'] = 'tenant_admin'; // First user becomes tenant admin
+            $userData['access_level'] = 'full';
+
+            // Check if this is a new tenant registration (user provided company_name)
+            $isNewTenantRegistration = $request->has('company_name') && !empty($request->company_name);
+
+            if ($isNewTenantRegistration) {
+                // Create tenant automatically for first user
+                $tenantData = [
+                    'tenant_code' => strtoupper(substr($userData['company_name'], 0, 3)) . '001',
+                    'company_name' => $userData['company_name'],
+                    'business_type' => $userData['business_type'] ?? 'retail',
+                    'contact_person' => $userData['full_name'],
+                    'email' => $userData['email'],
+                    'phone_number' => $userData['phone_number'] ?? null,
+                    'website_url' => $userData['website_url'] ?? null,
+                    'address' => $userData['address'] ?? null,
+                    'city' => $userData['city'] ?? null,
+                    'state' => $userData['state'] ?? null,
+                    'postal_code' => $userData['postal_code'] ?? null,
+                    'country' => $userData['country'] ?? null,
+                    'timezone' => 'UTC',
+                    'industry' => $userData['industry'] ?? null,
+                    'company_size' => $userData['company_size'] ?? 'small',
+                    'subscription_plan' => 'trial',
+                    'subscription_start_date' => now(),
+                    'billing_cycle' => 'monthly',
+                    'subscription_amount' => 0.00,
+                    'currency' => 'USD',
+                    'max_users' => 5,
+                    'max_products' => 100,
+                    'max_warehouses' => 1,
+                    'max_shops' => 1,
+                    'storage_limit_gb' => 1,
+                    'api_requests_limit' => 1000,
+                    'status' => 'active',
+                    'is_trial' => true,
+                    'trial_days_remaining' => 30,
+                    'ssl_enabled' => true,
+                    'onboarding_completed' => false
+                ];
+
+                $tenant = Tenant::create($tenantData);
+                $userData['tenant_id'] = $tenant->tenant_id;
+
+                // Create default system configurations for the tenant
+                $this->createDefaultTenantConfigurations($tenant->tenant_id);
+
+                // Create default warehouse for the tenant
+                $warehouse = $tenant->warehouses()->create([
+                    'name' => $tenant->company_name . ' Main Warehouse',
+                    'code' => 'MAIN',
+                    'address' => $tenant->address,
+                    'city' => $tenant->city,
+                    'state' => $tenant->state,
+                    'postal_code' => $tenant->postal_code,
+                    'country' => $tenant->country,
+                    'phone_number' => $tenant->phone_number,
+                    'email' => $tenant->email,
+                    'is_active' => true
+                ]);
+
+                // Create default shop for the tenant
+                $shop = $tenant->shops()->create([
+                    'name' => $tenant->company_name . ' Main Shop',
+                    'code' => 'MAIN',
+                    'address' => $tenant->address,
+                    'city' => $tenant->city,
+                    'state' => $tenant->state,
+                    'postal_code' => $tenant->postal_code,
+                    'country' => $tenant->country,
+                    'phone_number' => $tenant->phone_number,
+                    'email' => $tenant->email,
+                    'is_active' => true
+                ]);
+
+                $userData['warehouse_id'] = $warehouse->warehouse_id;
+                $userData['shop_id'] = $shop->shop_id;
+
+            } else {
+                // For subsequent users, require tenant_code
+                $validator = Validator::make($request->all(), [
+                    'tenant_code' => 'required|string|exists:tenants,tenant_code'
+                ]);
+
+                if ($validator->fails()) {
+                    return $this->validationErrorResponse($validator);
+                }
+
+                $tenant = Tenant::where('tenant_code', $request->tenant_code)->first();
+                if (!$tenant || !$tenant->isActive()) {
+                    return $this->errorResponse('Invalid tenant or tenant is inactive', 403);
+                }
+
+                $userData['tenant_id'] = $tenant->tenant_id;
+                $userData['role'] = 'customer'; // Subsequent users are customers by default
+            }
+
+            // Create the user
+            $user = User::create($userData);
+
+            // Create customer profile if role is customer
+            if ($userData['role'] === 'customer') {
+                \App\Models\CustomerProfile::create([
+                    'customer_id' => $user->user_id,
+                    'tenant_id' => $userData['tenant_id'],
+                    'phone_number' => $userData['phone_number'] ?? null,
+                    'address' => $userData['address'] ?? null,
+                    'preferred_language' => 'English',
+                    'customer_tier' => 'bronze'
+                ]);
+            }
+
+            // Log activity
+            \App\Models\AuditLog::logAction(
+                $userData['tenant_id'],
+                'user_registered',
+                'users',
+                $user->user_id,
+                ['method' => 'public_registration', 'is_new_tenant' => $isNewTenantRegistration]
+            );
+
+            DB::commit();
+
+            // Load relationships for response
+            $user->load(['warehouse', 'shop', 'customerProfile']);
+
+            $responseData = [
+                'user' => [
+                    'id' => $user->user_id,
+                    'full_name' => $user->full_name,
+                    'email' => $user->email,
+                    'role' => $user->role,
+                    'is_active' => $user->is_active,
+                    'created_at' => $user->created_at
+                ],
+                'tenant' => [
+                    'id' => $tenant->tenant_id,
+                    'name' => $tenant->company_name,
+                    'code' => $tenant->tenant_code,
+                    'is_trial' => $tenant->is_trial,
+                    'trial_days_remaining' => $tenant->getRemainingTrialDays()
+                ],
+                'is_new_tenant' => $isNewTenantRegistration
+            ];
+
+            return response()->json([
+                'success' => true,
+                'message' => $isNewTenantRegistration ? 'Account and tenant created successfully' : 'Account created successfully',
+                'data' => $responseData
+            ], 201);
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            return $this->errorResponse('Registration failed: ' . $e->getMessage(), 500);
+        }
+    }
+
+    /**
+     * Create default system configurations for a tenant
+     */
+    private function createDefaultTenantConfigurations($tenantId): void
+    {
+        $defaultConfigs = [
+            ['config_group' => 'system', 'config_key' => 'default_currency', 'config_value' => 'USD', 'data_type' => 'string'],
+            ['config_group' => 'system', 'config_key' => 'date_format', 'config_value' => 'Y-m-d', 'data_type' => 'string'],
+            ['config_group' => 'system', 'config_key' => 'time_format', 'config_value' => 'H:i:s', 'data_type' => 'string'],
+            ['config_group' => 'system', 'config_key' => 'timezone', 'config_value' => 'UTC', 'data_type' => 'string'],
+            ['config_group' => 'inventory', 'config_key' => 'low_stock_threshold', 'config_value' => '10', 'data_type' => 'integer'],
+            ['config_group' => 'inventory', 'config_key' => 'auto_reorder', 'config_value' => 'false', 'data_type' => 'boolean'],
+            ['config_group' => 'orders', 'config_key' => 'auto_approve', 'config_value' => 'false', 'data_type' => 'boolean'],
+            ['config_group' => 'orders', 'config_key' => 'require_payment', 'config_value' => 'true', 'data_type' => 'boolean'],
+        ];
+
+        foreach ($defaultConfigs as $config) {
+            \App\Models\SystemConfiguration::create([
+                'tenant_id' => $tenantId,
+                'config_group' => $config['config_group'],
+                'config_key' => $config['config_key'],
+                'config_value' => $config['config_value'],
+                'data_type' => $config['data_type']
+            ]);
+        }
+    }
+
     
 }
