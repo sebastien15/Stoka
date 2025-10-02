@@ -110,6 +110,7 @@ Route::middleware([])->group(function () {
     
     // Tenant routes
     Route::apiResource('tenants', TenantController::class);
+    Route::get('tenants/{id}/stats', [TenantController::class, 'tenantStats']);
     
     // Expense routes
     Route::apiResource('expenses', ExpenseController::class);

@@ -13,8 +13,14 @@ class TenantController extends BaseController
     public function __construct()
     {
         parent::__construct();
-        // Only super admins can manage tenants
+        // Only super admins can manage tenants (except for index method which is public)
         $this->middleware(function ($request, $next) {
+            // Allow public access to index method (GET /api/tenants)
+            if ($request->route()->getActionMethod() === 'index') {
+                return $next($request);
+            }
+            
+            // Require super admin for all other methods
             if (!auth()->check() || !auth()->user()->isSuperAdmin()) {
                 abort(403, 'Only super administrators can manage tenants');
             }
@@ -52,6 +58,35 @@ class TenantController extends BaseController
 
         if ($request->has('country')) {
             $query->where('country', $request->get('country'));
+        }
+
+        // For public access, only return safe fields
+        if (!auth()->check() || !auth()->user()->isSuperAdmin()) {
+            $query->select([
+                'tenant_id',
+                'tenant_code', 
+                'company_name',
+                'business_type',
+                'contact_person',
+                'email',
+                'phone_number',
+                'website_url',
+                'address',
+                'city',
+                'state',
+                'postal_code',
+                'country',
+                'timezone',
+                'industry',
+                'company_size',
+                'subscription_plan',
+                'status',
+                'is_trial',
+                'logo_url',
+                'primary_color',
+                'secondary_color',
+                'created_at'
+            ]);
         }
 
         return $this->paginatedResponse($query, $request, 'Tenants retrieved successfully');

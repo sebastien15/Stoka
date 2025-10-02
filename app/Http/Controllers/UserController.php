@@ -10,6 +10,8 @@ use App\Models\User;
 
 use App\Models\CustomerProfile;
 
+use App\Models\Tenant;
+
 use Illuminate\Http\Request;
 
 use Illuminate\Http\JsonResponse;
@@ -115,57 +117,54 @@ class UserController extends BaseController
 
     {
 
-        $this->requireTenant();
+        // Check if user is authenticated for tenant resolution
+        $isSuperAdmin = auth()->check() && auth()->user()->isSuperAdmin();
+        
+        // Only require tenant context for authenticated users (not super admins with tenant_id)
+        if (auth()->check() && (!$isSuperAdmin || !$request->has('tenant_id'))) {
+            $this->requireTenant();
+        }
 
-        $this->requirePermission('users.create');
-
-
-
-        // Check tenant limits
-
-        if (!$this->checkTenantLimits('users')) {
-
-            return $this->errorResponse('User limit reached for your subscription plan', 403);
-
+        // Optional: Check permissions if user is authenticated
+        if (auth()->check()) {
+            $this->requirePermission('users.create');
+            
+            // Check tenant limits only for authenticated users
+            if (!$this->checkTenantLimits('users')) {
+                return $this->errorResponse('User limit reached for your subscription plan', 403);
+            }
         }
 
 
 
-        $validator = Validator::make($request->all(), [
-
+        // Build validation rules based on authentication status
+        $validationRules = [
             'full_name' => 'required|string|max:150',
-
             'email' => 'required|email|max:150|unique:users,email',
-
             'password' => 'required|string|min:8|confirmed',
-
             'phone_number' => 'nullable|string|max:20',
-
             'address' => 'nullable|string',
-
             'role' => 'required|in:tenant_admin,admin,warehouse_manager,shop_manager,employee,customer',
-
             'warehouse_id' => 'nullable|exists:warehouses,warehouse_id',
-
             'shop_id' => 'nullable|exists:shops,shop_id',
-
             'date_of_birth' => 'nullable|date',
-
             'gender' => 'nullable|in:male,female,other',
-
             'emergency_contact' => 'nullable|string|max:20',
-
             'salary' => 'nullable|numeric|min:0',
-
             'hire_date' => 'nullable|date',
-
             'permissions' => 'nullable|array',
-
             'access_level' => 'nullable|in:full,limited,read_only',
-
             'profile_image_url' => 'nullable|url|max:500'
+        ];
 
-        ]);
+        // If not authenticated, require tenant_id
+        if (!auth()->check()) {
+            $validationRules['tenant_id'] = 'required|exists:tenants,tenant_id';
+        } else {
+            $validationRules['tenant_id'] = 'nullable|exists:tenants,tenant_id';
+        }
+
+        $validator = Validator::make($request->all(), $validationRules);
 
 
 
@@ -185,7 +184,17 @@ class UserController extends BaseController
 
             $userData = $validator->validated();
 
-            $userData['tenant_id'] = $this->tenant->tenant_id;
+            // Determine target tenant ID
+            if (auth()->check() && $isSuperAdmin && $request->has('tenant_id')) {
+                // Super admin creating user for specific tenant
+                $userData['tenant_id'] = $request->get('tenant_id');
+            } elseif (auth()->check()) {
+                // Authenticated user creating for their own tenant
+                $userData['tenant_id'] = $this->tenant->tenant_id;
+            } else {
+                // Non-authenticated user must provide tenant_id
+                $userData['tenant_id'] = $request->get('tenant_id');
+            }
 
             $userData['password'] = Hash::make($userData['password']);
 
@@ -193,32 +202,25 @@ class UserController extends BaseController
 
 
 
-            // Validate warehouse and shop belong to tenant
-
-            if (!empty($userData['warehouse_id'])) {
-
-                $warehouse = $this->tenant->warehouses()->find($userData['warehouse_id']);
-
-                if (!$warehouse) {
-
-                    return $this->errorResponse('Warehouse not found or does not belong to tenant', 400);
-
-                }
-
+            // Get target tenant for validation
+            $targetTenant = Tenant::find($userData['tenant_id']);
+            if (!$targetTenant) {
+                return $this->errorResponse('Target tenant not found', 400);
             }
 
-
+            // Validate warehouse and shop belong to target tenant
+            if (!empty($userData['warehouse_id'])) {
+                $warehouse = $targetTenant->warehouses()->find($userData['warehouse_id']);
+                if (!$warehouse) {
+                    return $this->errorResponse('Warehouse not found or does not belong to tenant', 400);
+                }
+            }
 
             if (!empty($userData['shop_id'])) {
-
-                $shop = $this->tenant->shops()->find($userData['shop_id']);
-
+                $shop = $targetTenant->shops()->find($userData['shop_id']);
                 if (!$shop) {
-
                     return $this->errorResponse('Shop not found or does not belong to tenant', 400);
-
                 }
-
             }
 
 
@@ -235,7 +237,7 @@ class UserController extends BaseController
 
                     'customer_id' => $user->user_id,
 
-                    'tenant_id' => $this->tenant->tenant_id,
+                    'tenant_id' => $targetTenant->tenant_id,
 
                     'phone_number' => $userData['phone_number'] ?? null,
 
@@ -267,9 +269,17 @@ class UserController extends BaseController
 
             $user->load(['warehouse', 'shop', 'customerProfile']);
 
-
-
-            return $this->successResponse($user, 'User created successfully', 201);
+            // Create custom response with target tenant info
+            return response()->json([
+                'success' => true,
+                'message' => 'User created successfully',
+                'data' => $user,
+                'tenant' => [
+                    'id' => $targetTenant->tenant_id,
+                    'name' => $targetTenant->company_name,
+                    'code' => $targetTenant->tenant_code
+                ]
+            ], 201);
 
 
 

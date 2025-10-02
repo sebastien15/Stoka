@@ -16,12 +16,6 @@ class SuperAdminSeeder extends Seeder
     public function run(): void
     {
         $email = 'superadmin@example.com';
-        $tenant = Tenant::first();
-
-        if (!$tenant) {
-            $this->command?->warn('No tenants found. Skipping Super Admin creation.');
-            return;
-        }
 
         $existing = User::where('email', $email)->first();
         if ($existing) {
@@ -30,7 +24,7 @@ class SuperAdminSeeder extends Seeder
         }
 
         $user = User::create([
-            'tenant_id' => $tenant->tenant_id,
+            'tenant_id' => null, // Super admin is not associated with any specific tenant
             'full_name' => 'Super Admin',
             'email' => $email,
             'password' => Hash::make('password123'),
