@@ -19,7 +19,8 @@ class OrderController extends BaseController
     public function index(Request $request): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('orders.view');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('orders.view');
 
         $query = $this->applyTenantScope(Order::query());
 
@@ -78,7 +79,8 @@ class OrderController extends BaseController
     public function store(Request $request): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('orders.create');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('orders.create');
 
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|exists:users,user_id',
@@ -220,7 +222,8 @@ class OrderController extends BaseController
     public function show(int $id): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('orders.view');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('orders.view');
 
         $order = $this->applyTenantScope(Order::query())
             ->with(['customer.customerProfile', 'shop', 'warehouse', 'items.product', 'items.variant'])
@@ -249,7 +252,8 @@ class OrderController extends BaseController
     public function update(Request $request, int $id): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('orders.edit');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('orders.edit');
 
         $order = $this->applyTenantScope(Order::query())->find($id);
 
@@ -313,7 +317,8 @@ class OrderController extends BaseController
     public function destroy(int $id): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('orders.delete');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('orders.delete');
 
         $order = $this->applyTenantScope(Order::query())->find($id);
 
@@ -353,7 +358,8 @@ class OrderController extends BaseController
     public function confirm(int $id): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('orders.manage');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('orders.manage');
 
         $order = $this->applyTenantScope(Order::query())->find($id);
 
@@ -387,7 +393,8 @@ class OrderController extends BaseController
     public function ship(Request $request, int $id): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('orders.manage');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('orders.manage');
 
         $order = $this->applyTenantScope(Order::query())->find($id);
 
@@ -431,7 +438,8 @@ class OrderController extends BaseController
     public function deliver(int $id): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('orders.manage');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('orders.manage');
 
         $order = $this->applyTenantScope(Order::query())->find($id);
 
@@ -465,7 +473,8 @@ class OrderController extends BaseController
     public function cancel(Request $request, int $id): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('orders.manage');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('orders.manage');
 
         $order = $this->applyTenantScope(Order::query())->find($id);
 
@@ -509,7 +518,8 @@ class OrderController extends BaseController
     public function markPaid(Request $request, int $id): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('orders.manage_payment');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('orders.manage_payment');
 
         $order = $this->applyTenantScope(Order::query())->find($id);
 
@@ -549,7 +559,8 @@ class OrderController extends BaseController
     public function stats(Request $request): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('orders.view');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('orders.view');
 
         $query = $this->applyTenantScope(Order::query());
 
