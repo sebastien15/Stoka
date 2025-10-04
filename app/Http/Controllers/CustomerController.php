@@ -18,7 +18,8 @@ class CustomerController extends BaseController
      */
     public function index(Request $request): JsonResponse
     {
-        $this->requirePermission('customers.view');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('customers.view');
         $this->requireTenant();
 
         // Get customers with their profiles
@@ -106,7 +107,8 @@ class CustomerController extends BaseController
      */
     public function store(Request $request): JsonResponse
     {
-        $this->requirePermission('customers.create');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('customers.create');
         $this->requireTenant();
 
         // Check tenant limits
@@ -190,7 +192,8 @@ class CustomerController extends BaseController
      */
     public function show(int $id): JsonResponse
     {
-        $this->requirePermission('customers.view');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('customers.view');
         $this->requireTenant();
 
         $customer = User::where('user_id', $id)
@@ -216,7 +219,8 @@ class CustomerController extends BaseController
      */
     public function update(Request $request, int $id): JsonResponse
     {
-        $this->requirePermission('customers.update');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('customers.update');
         $this->requireTenant();
 
         $customer = User::where('user_id', $id)
@@ -307,7 +311,8 @@ class CustomerController extends BaseController
      */
     public function destroy(int $id): JsonResponse
     {
-        $this->requirePermission('customers.delete');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('customers.delete');
         $this->requireTenant();
 
         $customer = User::where('user_id', $id)
@@ -352,7 +357,8 @@ class CustomerController extends BaseController
      */
     public function deactivate(int $id): JsonResponse
     {
-        $this->requirePermission('customers.update');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('customers.update');
         $this->requireTenant();
 
         $customer = User::where('user_id', $id)
@@ -376,7 +382,8 @@ class CustomerController extends BaseController
      */
     public function activate(int $id): JsonResponse
     {
-        $this->requirePermission('customers.update');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('customers.update');
         $this->requireTenant();
 
         $customer = User::where('user_id', $id)
@@ -400,7 +407,8 @@ class CustomerController extends BaseController
      */
     public function stats(): JsonResponse
     {
-        $this->requirePermission('customers.view');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('customers.view');
         $this->requireTenant();
 
         $totalCustomers = User::where('role', 'customer')
@@ -448,7 +456,8 @@ class CustomerController extends BaseController
      */
     public function orders(int $id): JsonResponse
     {
-        $this->requirePermission('customers.view');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('customers.view');
         $this->requireTenant();
 
         $customer = User::where('user_id', $id)
@@ -473,7 +482,8 @@ class CustomerController extends BaseController
      */
     public function updateLoyaltyPoints(Request $request, int $id): JsonResponse
     {
-        $this->requirePermission('customers.update');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('customers.update');
         $this->requireTenant();
 
         $customer = User::where('user_id', $id)

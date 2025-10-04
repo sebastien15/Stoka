@@ -26,6 +26,7 @@ class RoleSeeder extends Seeder
                 'is_active' => true,
                 'default_permissions' => [
                     'users.view','users.create','users.edit','users.delete','users.manage_permissions',
+                    'customers.view','customers.create','customers.edit','customers.delete',
                     'products.view','products.create','products.edit','products.delete','products.manage_stock',
                     'orders.view','orders.create','orders.edit','orders.delete','orders.manage',
                     'purchases.view','purchases.create','purchases.edit','purchases.delete','purchases.manage',
@@ -65,6 +66,7 @@ class RoleSeeder extends Seeder
                 'is_active' => true,
                 'default_permissions' => [
                     'products.view','products.create','products.edit',
+                    'customers.view','customers.create','customers.edit',
                     'orders.view','orders.create','orders.edit','orders.manage',
                     'shops.view','shops.edit',
                     'dashboard.view'

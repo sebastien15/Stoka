@@ -37,8 +37,8 @@ class UserController extends BaseController
     public function index(Request $request): JsonResponse
 
     {
-
-        $this->requirePermission('users.view');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('users.view');
 
 
 
@@ -125,14 +125,13 @@ class UserController extends BaseController
             $this->requireTenant();
         }
 
-        // Optional: Check permissions if user is authenticated
-        if (auth()->check()) {
-            $this->requirePermission('users.create');
+        // Removed permission check - only requires token authentication
+        // if (auth()->check()) {
+        //     $this->requirePermission('users.create');
             
-            // Check tenant limits only for authenticated users
-            if (!$this->checkTenantLimits('users')) {
-                return $this->errorResponse('User limit reached for your subscription plan', 403);
-            }
+        // Check tenant limits only for authenticated users
+        if (auth()->check() && !$this->checkTenantLimits('users')) {
+            return $this->errorResponse('User limit reached for your subscription plan', 403);
         }
 
 
@@ -307,7 +306,8 @@ class UserController extends BaseController
 
         $this->requireTenant();
 
-        $this->requirePermission('users.view');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('users.view');
 
 
 
@@ -345,7 +345,8 @@ class UserController extends BaseController
 
         $this->requireTenant();
 
-        $this->requirePermission('users.edit');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('users.edit');
 
 
 
@@ -545,7 +546,8 @@ class UserController extends BaseController
 
     {
 
-        $this->requirePermission('users.delete');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('users.delete');
 
 
 
@@ -673,7 +675,8 @@ class UserController extends BaseController
 
         $this->requireTenant();
 
-        $this->requirePermission('users.edit');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('users.edit');
 
 
 
@@ -713,7 +716,8 @@ class UserController extends BaseController
 
         $this->requireTenant();
 
-        $this->requirePermission('users.edit');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('users.edit');
 
 
 
@@ -753,7 +757,8 @@ class UserController extends BaseController
 
         $this->requireTenant();
 
-        $this->requirePermission('users.edit');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('users.edit');
 
 
 
@@ -815,7 +820,8 @@ class UserController extends BaseController
 
         $this->requireTenant();
 
-        $this->requirePermission('users.view');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('users.view');
 
 
 
@@ -871,7 +877,8 @@ class UserController extends BaseController
 
         $this->requireTenant();
 
-        $this->requirePermission('users.manage_permissions');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('users.manage_permissions');
 
 
 
@@ -951,7 +958,8 @@ class UserController extends BaseController
 
         $this->requireTenant();
 
-        $this->requirePermission('users.view');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('users.view');
 
 
 
@@ -1035,7 +1043,8 @@ class UserController extends BaseController
 
         $this->requireTenant();
 
-        $this->requirePermission('users.bulk_actions');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('users.bulk_actions');
 
 
 
@@ -1155,6 +1164,37 @@ class UserController extends BaseController
 
         }
 
+    }
+
+    /**
+     * Get permissions catalog
+     */
+    public function permissionsCatalog(): JsonResponse
+    {
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('users.view');
+        $this->requireTenant();
+
+        $catalog = [
+            'users' => ['users.view','users.create','users.edit','users.delete','users.manage_permissions','users.bulk_actions'],
+            'customers' => ['customers.view','customers.create','customers.edit','customers.delete'],
+            'products' => ['products.view','products.create','products.edit','products.delete','products.manage_stock','products.bulk_actions'],
+            'orders' => ['orders.view','orders.create','orders.edit','orders.delete','orders.manage','orders.manage_payment'],
+            'purchases' => ['purchases.view','purchases.create','purchases.edit','purchases.delete','purchases.manage','purchases.receive','purchases.manage_payment'],
+            'warehouses' => ['warehouses.view','warehouses.create','warehouses.edit','warehouses.delete','warehouses.transfer'],
+            'shops' => ['shops.view','shops.create','shops.edit','shops.delete'],
+            'categories' => ['categories.view','categories.create','categories.edit','categories.delete','categories.bulk_actions'],
+            'brands' => ['brands.view','brands.create','brands.edit','brands.delete'],
+            'suppliers' => ['suppliers.view','suppliers.create','suppliers.edit','suppliers.delete'],
+            'expenses' => ['expenses.view','expenses.create','expenses.edit','expenses.delete','expenses.approve','expenses.manage_payment'],
+            'inventory' => ['inventory.view','inventory.adjust'],
+            'notices' => ['notices.view','notices.create','notices.edit','notices.delete','notices.publish'],
+            'audit' => ['audit.view','audit.export','audit.cleanup'],
+            'dashboard' => ['dashboard.view'],
+            'roles' => ['roles.view','roles.create','roles.edit','roles.delete','roles.manage_permissions']
+        ];
+
+        return $this->successResponse($catalog, 'Permissions catalog retrieved successfully');
     }
 
 }

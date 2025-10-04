@@ -235,6 +235,7 @@ class RoleController extends BaseController
 
         $catalog = [
             'users' => ['users.view','users.create','users.edit','users.delete','users.manage_permissions','users.bulk_actions'],
+            'customers' => ['customers.view','customers.create','customers.edit','customers.delete'],
             'products' => ['products.view','products.create','products.edit','products.delete','products.manage_stock','products.bulk_actions'],
             'orders' => ['orders.view','orders.create','orders.edit','orders.delete','orders.manage','orders.manage_payment'],
             'purchases' => ['purchases.view','purchases.create','purchases.edit','purchases.delete','purchases.manage','purchases.receive','purchases.manage_payment'],
