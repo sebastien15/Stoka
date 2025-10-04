@@ -17,7 +17,8 @@ class ProductController extends BaseController
     public function index(Request $request): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('products.view');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('products.view');
 
         $query = $this->applyTenantScope(Product::query());
 
@@ -95,7 +96,8 @@ class ProductController extends BaseController
     public function store(Request $request): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('products.create');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('products.create');
 
         // Check tenant limits
         if (!$this->checkTenantLimits('products')) {
@@ -193,7 +195,8 @@ class ProductController extends BaseController
     public function show(int $id): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('products.view');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('products.view');
 
         $product = $this->applyTenantScope(Product::query())
             ->with(['category', 'brand', 'supplier', 'shop', 'warehouse', 'variants'])
@@ -226,7 +229,8 @@ class ProductController extends BaseController
     public function update(Request $request, int $id): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('products.edit');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('products.edit');
 
         $product = $this->applyTenantScope(Product::query())->find($id);
 
@@ -316,7 +320,8 @@ class ProductController extends BaseController
     public function destroy(int $id): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('products.delete');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('products.delete');
 
         $product = $this->applyTenantScope(Product::query())->find($id);
 
@@ -362,7 +367,8 @@ class ProductController extends BaseController
     public function updateStock(Request $request, int $id): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('products.manage_stock');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('products.manage_stock');
 
         $product = $this->applyTenantScope(Product::query())->find($id);
 
@@ -419,7 +425,8 @@ class ProductController extends BaseController
     public function variants(int $id): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('products.view');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('products.view');
 
         $product = $this->applyTenantScope(Product::query())->find($id);
 
@@ -438,7 +445,8 @@ class ProductController extends BaseController
     public function lowStock(Request $request): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('products.view');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('products.view');
 
         $query = $this->applyTenantScope(Product::query())
             ->lowStock()
@@ -453,7 +461,8 @@ class ProductController extends BaseController
     public function needsReorder(Request $request): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('products.view');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('products.view');
 
         $query = $this->applyTenantScope(Product::query())
             ->needReorder()
@@ -468,7 +477,8 @@ class ProductController extends BaseController
     public function stats(): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('products.view');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('products.view');
 
         $query = $this->applyTenantScope(Product::query());
 
@@ -503,7 +513,8 @@ class ProductController extends BaseController
     public function bulkAction(Request $request): JsonResponse
     {
         $this->requireTenant();
-        $this->requirePermission('products.bulk_actions');
+        // Removed permission check - only requires token authentication
+        // $this->requirePermission('products.bulk_actions');
 
         $validator = Validator::make($request->all(), [
             'action' => 'required|in:activate,deactivate,delete,update_category,update_status,feature,unfeature',
