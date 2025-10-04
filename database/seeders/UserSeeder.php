@@ -2,12 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\User;
 use App\Models\Tenant;
-use App\Models\Warehouse;
-use App\Models\Shop;
 use Illuminate\Support\Facades\Hash;
 
 class UserSeeder extends Seeder
@@ -22,11 +19,11 @@ class UserSeeder extends Seeder
         foreach ($tenants as $tenant) {
             $warehouses = $tenant->warehouses;
             $shops = $tenant->shops;
-            
+
             $users = [];
 
             switch ($tenant->tenant_code) {
-                case 'DEMO001': // TechWorld Electronics
+                case 'DEMO001': // TechWorld Electronics demo data
                     $users = [
                         [
                             'tenant_id' => $tenant->tenant_id,
@@ -51,7 +48,6 @@ class UserSeeder extends Seeder
                                 'categories.view', 'categories.create', 'categories.edit', 'categories.delete',
                                 'suppliers.view', 'suppliers.create', 'suppliers.edit', 'suppliers.delete',
                                 'orders.view', 'orders.create', 'orders.edit', 'orders.delete',
-                                // Warehouses permissions for tenant admins
                                 'warehouses.view', 'warehouses.create', 'warehouses.edit', 'warehouses.delete',
                                 'reports.view', 'settings.manage'
                             ],
@@ -154,7 +150,6 @@ class UserSeeder extends Seeder
                                 'categories.view', 'categories.create',
                                 'suppliers.view', 'suppliers.create',
                                 'orders.view', 'orders.create', 'orders.edit',
-                                // Warehouses permissions for tenant admins
                                 'warehouses.view', 'warehouses.create', 'warehouses.edit', 'warehouses.delete',
                                 'reports.view'
                             ],
@@ -165,11 +160,62 @@ class UserSeeder extends Seeder
                     break;
             }
 
+            // ✅ Add warehouse manager if tenant has warehouses
+            if ($warehouses->isNotEmpty()) {
+                $users[] = [
+                    'tenant_id' => $tenant->tenant_id,
+                    'full_name' => 'Warehouse Manager - ' . $tenant->company_name,
+                    'email' => strtolower($tenant->tenant_code) . '.warehouse@system.com',
+                    'password' => Hash::make('password123'),
+                    'phone_number' => '+1-555-' . rand(1000, 9999),
+                    'address' => $tenant->address,
+                    'role' => 'warehouse_manager',
+                    'warehouse_id' => $warehouses->first()->warehouse_id ?? null,
+                    'shop_id' => null,
+                    'is_active' => true,
+                    'last_login' => now()->subHours(rand(1, 12)),
+                    'permissions' => [
+                        'products.view', 'products.edit',
+                        'inventory.view', 'inventory.manage',
+                        'purchases.view', 'purchases.create',
+                        'warehouse.manage'
+                    ],
+                    'access_level' => 'warehouse',
+                    'mfa_enabled' => false,
+                ];
+            }
+
+            // ✅ Add shop manager if tenant has shops
+            if ($shops->isNotEmpty()) {
+                $users[] = [
+                    'tenant_id' => $tenant->tenant_id,
+                    'full_name' => 'Shop Manager - ' . $tenant->company_name,
+                    'email' => strtolower($tenant->tenant_code) . '.shop@system.com',
+                    'password' => Hash::make('password123'),
+                    'phone_number' => '+1-555-' . rand(1000, 9999),
+                    'address' => $tenant->address,
+                    'role' => 'shop_manager',
+                    'warehouse_id' => null,
+                    'shop_id' => $shops->first()->shop_id ?? null,
+                    'is_active' => true,
+                    'last_login' => now()->subHours(rand(1, 12)),
+                    'permissions' => [
+                        'products.view',
+                        'orders.view', 'orders.create', 'orders.edit',
+                        'customers.view', 'customers.create',
+                        'shop.manage'
+                    ],
+                    'access_level' => 'shop',
+                    'mfa_enabled' => false,
+                ];
+            }
+
+            // ✅ Create all users
             foreach ($users as $userData) {
                 User::create($userData);
             }
 
-            // Update warehouse and shop managers
+            // ✅ Update warehouse and shop managers
             if ($warehouses->isNotEmpty()) {
                 $warehouseManager = $tenant->users()->where('role', 'warehouse_manager')->first();
                 if ($warehouseManager) {
@@ -185,13 +231,13 @@ class UserSeeder extends Seeder
             }
         }
 
-        $this->command->info('Created users for all tenants successfully.');
+        $this->command->info('✅ Created users, warehouse managers, and shop managers for all tenants.');
 
-        // Create a global Super Admin with full access (NOT associated with any tenant)
+        // ✅ Create Super Admin (global, not tied to any tenant)
         $superAdminEmail = 'superadmin@example.com';
         if (!User::where('email', $superAdminEmail)->exists()) {
             User::create([
-                'tenant_id' => null, // Super admin is not associated with any specific tenant
+                'tenant_id' => null,
                 'full_name' => 'Super Admin',
                 'email' => $superAdminEmail,
                 'password' => Hash::make('password123'),
@@ -200,10 +246,10 @@ class UserSeeder extends Seeder
                 'last_login' => now()->subDay(),
                 'access_level' => 'full',
                 'mfa_enabled' => false,
-                'permissions' => [] // super_admin bypasses permissions checks
+                'permissions' => [] // super_admin bypasses checks
             ]);
 
-            $this->command->info('Created Super Admin: superadmin@example.com / password123');
+            $this->command->info('✅ Created Super Admin: superadmin@example.com / password123');
         }
     }
 }

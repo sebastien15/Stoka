@@ -19,6 +19,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\NoticeController;
 use App\Http\Controllers\AuditController;
+use App\Http\Controllers\CustomerController;
 
 /*
 |--------------------------------------------------------------------------
@@ -101,6 +102,14 @@ Route::middleware([])->group(function () {
     Route::get('users/{id}/permissions', [UserController::class, 'permissions'])->whereNumber('id');
     Route::post('users/{id}/permissions', [UserController::class, 'updatePermissions'])->whereNumber('id');
     Route::apiResource('users', UserController::class);
+
+    // Customer routes
+    Route::get('customers/stats', [CustomerController::class, 'stats']);
+    Route::get('customers/{id}/orders', [CustomerController::class, 'orders'])->whereNumber('id');
+    Route::post('customers/{id}/activate', [CustomerController::class, 'activate'])->whereNumber('id');
+    Route::post('customers/{id}/deactivate', [CustomerController::class, 'deactivate'])->whereNumber('id');
+    Route::post('customers/{id}/loyalty-points', [CustomerController::class, 'updateLoyaltyPoints'])->whereNumber('id');
+    Route::apiResource('customers', CustomerController::class);
 
     // Role routes
     Route::get('roles/permissions-catalog', [RoleController::class, 'permissionsCatalog']);
