@@ -101,7 +101,7 @@ class TenantController extends BaseController
             'tenant_code' => 'required|string|max:20|unique:tenants,tenant_code|alpha_dash',
             'company_name' => 'required|string|max:200',
             'business_type' => 'nullable|string|max:100',
-            'subscription_plan' => 'required|in:trial,basic,premium,enterprise',
+            'subscription_plan' => 'required|in:trial,basic,enterprise',
             'contact_person' => 'required|string|max:150',
             'email' => 'required|email|max:150|unique:tenants,email',
             'phone_number' => 'nullable|string|max:20',
@@ -212,7 +212,7 @@ class TenantController extends BaseController
             'tenant_code' => 'sometimes|string|max:20|alpha_dash|unique:tenants,tenant_code,' . $id . ',tenant_id',
             'company_name' => 'sometimes|string|max:200',
             'business_type' => 'nullable|string|max:100',
-            'subscription_plan' => 'sometimes|in:trial,basic,premium,enterprise',
+            'subscription_plan' => 'sometimes|in:trial,basic,enterprise',
             'contact_person' => 'sometimes|string|max:150',
             'email' => 'sometimes|email|max:150|unique:tenants,email,' . $id . ',tenant_id',
             'phone_number' => 'nullable|string|max:20',
@@ -393,14 +393,6 @@ class TenantController extends BaseController
                 'max_shops' => 3,
                 'storage_limit_gb' => 5,
                 'api_requests_limit' => 5000
-            ],
-            'premium' => [
-                'max_users' => 50,
-                'max_products' => 2000,
-                'max_warehouses' => 5,
-                'max_shops' => 10,
-                'storage_limit_gb' => 20,
-                'api_requests_limit' => 20000
             ],
             'enterprise' => [
                 'max_users' => null, // Unlimited
