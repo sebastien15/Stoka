@@ -84,7 +84,7 @@ class OrderController extends BaseController
 
         $validator = Validator::make($request->all(), [
             'customer_id' => 'required|exists:users,user_id',
-            'shop_id' => 'required|exists:shops,shop_id',
+            'shop_id' => 'nullable|exists:shops,shop_id',
             'warehouse_id' => 'nullable|exists:warehouses,warehouse_id',
             'payment_method' => 'nullable|in:cash,card,mobile_money,bank_transfer,credit',
             'shipping_address' => 'nullable|string',
@@ -114,10 +114,12 @@ class OrderController extends BaseController
                 return $this->errorResponse('Customer not found or does not belong to tenant', 400);
             }
 
-            // Validate shop belongs to tenant
-            $shop = $this->tenant->shops()->find($request->shop_id);
-            if (!$shop) {
-                return $this->errorResponse('Shop not found or does not belong to tenant', 400);
+            // Validate shop belongs to tenant (only if provided)
+            if ($request->filled('shop_id')) {
+                $shop = $this->tenant->shops()->find($request->shop_id);
+                if (!$shop) {
+                    return $this->errorResponse('Shop not found or does not belong to tenant', 400);
+                }
             }
 
             // Validate warehouse if provided
@@ -597,11 +599,26 @@ class OrderController extends BaseController
      */
     private function generateOrderNumber(): string
     {
-        $date = now()->format('Ymd');
-        $count = $this->applyTenantScope(Order::query())
-            ->whereDate('created_at', now())
-            ->count() + 1;
-            
-        return "ORD-{$date}-" . str_pad($count, 4, '0', STR_PAD_LEFT);
+        $this->requireTenant();
+
+        $tenantCode = strtoupper($this->tenant->tenant_code);
+        $today = now();
+        $date = $today->format('Ymd');
+        $prefix = "ORD-{$tenantCode}-{$date}-";
+
+        // Use a lock within the surrounding transaction to avoid race conditions
+        $lastOrder = Order::where('tenant_id', $this->tenant->tenant_id)
+            ->whereDate('created_at', $today)
+            ->where('order_number', 'like', $prefix . '%')
+            ->lockForUpdate()
+            ->orderByDesc('order_id')
+            ->first();
+
+        $next = 1;
+        if ($lastOrder && preg_match('/^' . preg_quote($prefix, '/') . '(\d{4})$/', $lastOrder->order_number, $matches)) {
+            $next = (int) $matches[1] + 1;
+        }
+
+        return $prefix . str_pad($next, 4, '0', STR_PAD_LEFT);
     }
 }
