@@ -111,10 +111,10 @@ class ProductController extends BaseController
             'sku' => 'required|string|max:100|unique:products,sku',
             'barcode' => 'nullable|string|max:100',
             'qr_code' => 'nullable|string|max:100',
-            'category_id' => 'required|exists:categories,category_id',
+            'category_id' => 'nullable|exists:categories,category_id',
             'brand_id' => 'nullable|exists:brands,brand_id',
             'supplier_id' => 'nullable|exists:suppliers,supplier_id',
-            'shop_id' => 'required|exists:shops,shop_id',
+            'shop_id' => 'nullable|exists:shops,shop_id',
             'warehouse_id' => 'nullable|exists:warehouses,warehouse_id',
             'cost_price' => 'required|numeric|min:0',
             'selling_price' => 'required|numeric|min:0',
@@ -592,40 +592,45 @@ class ProductController extends BaseController
     /**
      * Validate that related resources belong to tenant
      */
-    private function validateResourcesBelongToTenant(array $data): void
+    private function validateResourcesBelongToTenant(array &$data): void
     {
         if (!empty($data['category_id'])) {
             $category = $this->tenant->categories()->find($data['category_id']);
             if (!$category) {
-                abort(400, 'Category not found or does not belong to tenant');
+                // Gracefully ignore invalid category by clearing it
+                $data['category_id'] = null;
             }
         }
 
         if (!empty($data['brand_id'])) {
             $brand = $this->tenant->brands()->find($data['brand_id']);
             if (!$brand) {
-                abort(400, 'Brand not found or does not belong to tenant');
+                // Gracefully ignore invalid brand by clearing it
+                $data['brand_id'] = null;
             }
         }
 
         if (!empty($data['supplier_id'])) {
             $supplier = $this->tenant->suppliers()->find($data['supplier_id']);
             if (!$supplier) {
-                abort(400, 'Supplier not found or does not belong to tenant');
+                // Gracefully ignore invalid supplier by clearing it
+                $data['supplier_id'] = null;
             }
         }
 
         if (!empty($data['shop_id'])) {
             $shop = $this->tenant->shops()->find($data['shop_id']);
             if (!$shop) {
-                abort(400, 'Shop not found or does not belong to tenant');
+                // Gracefully ignore invalid shop by clearing it
+                $data['shop_id'] = null;
             }
         }
 
         if (!empty($data['warehouse_id'])) {
             $warehouse = $this->tenant->warehouses()->find($data['warehouse_id']);
             if (!$warehouse) {
-                abort(400, 'Warehouse not found or does not belong to tenant');
+                // Gracefully ignore invalid warehouse by clearing it
+                $data['warehouse_id'] = null;
             }
         }
     }
