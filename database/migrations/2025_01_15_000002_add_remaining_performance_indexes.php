@@ -298,6 +298,9 @@ return new class extends Migration
     private function addIndexIfColumnExists(Blueprint $table, array $columns, string $indexName): void
     {
         $tableName = $table->getTable();
+        if (!Schema::hasTable($tableName)) {
+            return;
+        }
         
         // Check if all columns exist
         $tableColumns = DB::select("SHOW COLUMNS FROM {$tableName}");
@@ -329,6 +332,10 @@ return new class extends Migration
      */
     private function dropIndexesFromTable(string $tableName, array $indexNames): void
     {
+        if (!Schema::hasTable($tableName)) {
+            return;
+        }
+
         Schema::table($tableName, function (Blueprint $table) use ($indexNames) {
             foreach ($indexNames as $indexName) {
                 $this->dropIndexIfExists($table, $indexName);
@@ -342,7 +349,15 @@ return new class extends Migration
     private function dropIndexIfExists(Blueprint $table, string $indexName): void
     {
         $tableName = $table->getTable();
+        if (!Schema::hasTable($tableName)) {
+            return;
+        }
         
+        // Do not drop indexes that are required by a foreign key constraint
+        if ($this->isIndexRequiredByForeignKey($tableName, $indexName)) {
+            return;
+        }
+
         // Check if index exists
         $indexes = DB::select("SHOW INDEX FROM {$tableName}");
         $existingIndexes = array_column($indexes, 'Key_name');
@@ -350,5 +365,63 @@ return new class extends Migration
         if (in_array($indexName, $existingIndexes)) {
             $table->dropIndex($indexName);
         }
+    }
+
+    /**
+     * Check whether the given index name is backing a foreign key constraint.
+     * Many MySQL/InnoDB setups name the implicit index the same as the FK constraint.
+     */
+    private function isIndexRequiredByForeignKey(string $tableName, string $indexName): bool
+    {
+        $databaseName = DB::getDatabaseName();
+
+        // Determine the indexed column sequence for the given index
+        $indexRows = DB::select('SHOW INDEX FROM ' . $tableName . ' WHERE Key_name = ?', [$indexName]);
+        if (empty($indexRows)) {
+            return false;
+        }
+
+        $indexColumnsBySeq = [];
+        foreach ($indexRows as $row) {
+            $indexColumnsBySeq[(int)($row->Seq_in_index ?? 0)] = $row->Column_name;
+        }
+        ksort($indexColumnsBySeq);
+        $indexedColumns = array_values($indexColumnsBySeq);
+
+        // Fetch all FK constraints and their column sequences for this table
+        $fkRows = DB::select(
+            'SELECT CONSTRAINT_NAME, COLUMN_NAME, ORDINAL_POSITION
+             FROM information_schema.KEY_COLUMN_USAGE
+             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND REFERENCED_TABLE_NAME IS NOT NULL
+             ORDER BY CONSTRAINT_NAME, ORDINAL_POSITION',
+            [$databaseName, $tableName]
+        );
+
+        if (empty($fkRows)) {
+            return false;
+        }
+
+        // Group FK columns by constraint preserving order
+        $fkColumnsByConstraint = [];
+        foreach ($fkRows as $row) {
+            $constraint = $row->CONSTRAINT_NAME;
+            $position = (int)$row->ORDINAL_POSITION;
+            if (!isset($fkColumnsByConstraint[$constraint])) {
+                $fkColumnsByConstraint[$constraint] = [];
+            }
+            $fkColumnsByConstraint[$constraint][$position] = $row->COLUMN_NAME;
+        }
+        foreach ($fkColumnsByConstraint as $constraint => $colsByPos) {
+            ksort($colsByPos);
+            $fkColumns = array_values($colsByPos);
+            // If the FK columns match the leftmost prefix of the index columns,
+            // InnoDB can use this index to enforce the FK, so it is required.
+            $prefix = array_slice($indexedColumns, 0, count($fkColumns));
+            if ($fkColumns === $prefix) {
+                return true;
+            }
+        }
+
+        return false;
     }
 };

@@ -21,8 +21,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->unsignedBigInteger('tenant_id')->nullable(false)->change();
-        });
+        // Keep tenant_id nullable on rollback to avoid invalidating existing NULLs
+        // If enforcing NOT NULL is required, backfill data before this point.
     }
 };

@@ -22,9 +22,34 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Drop FK by actual name if it exists (Blueprint dropForeign cannot be conditionally guarded)
+        $this->dropForeignKeyIfExists('products', 'shop_id');
+
         Schema::table('products', function (Blueprint $table) {
-            $table->unsignedBigInteger('shop_id')->nullable(false)->change();
+            // Recreate FK with restrictive behavior; column may remain nullable here
+            $table->foreign('shop_id')
+                ->references('shop_id')->on('shops')
+                ->onDelete('restrict');
         });
+    }
+
+    /**
+     * Drop a foreign key on the given table/column if it exists, using information_schema to find the constraint name.
+     */
+    private function dropForeignKeyIfExists(string $tableName, string $columnName): void
+    {
+        $databaseName = \Illuminate\Support\Facades\DB::getDatabaseName();
+        $rows = \Illuminate\Support\Facades\DB::select(
+            'SELECT CONSTRAINT_NAME FROM information_schema.KEY_COLUMN_USAGE 
+             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ? AND REFERENCED_TABLE_NAME IS NOT NULL 
+             LIMIT 1',
+            [$databaseName, $tableName, $columnName]
+        );
+
+        if (!empty($rows)) {
+            $constraintName = $rows[0]->CONSTRAINT_NAME;
+            \Illuminate\Support\Facades\DB::statement("ALTER TABLE `{$tableName}` DROP FOREIGN KEY `{$constraintName}`");
+        }
     }
 };
 

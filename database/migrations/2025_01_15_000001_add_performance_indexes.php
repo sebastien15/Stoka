@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration
 {
@@ -175,6 +176,9 @@ return new class extends Migration
     private function addIndexIfNotExists(Blueprint $table, array $columns, string $indexName): void
     {
         $tableName = $table->getTable();
+        if (!Schema::hasTable($tableName)) {
+            return;
+        }
         
         // Check if index already exists
         $indexes = DB::select("SHOW INDEX FROM {$tableName}");
@@ -191,7 +195,15 @@ return new class extends Migration
     private function dropIndexIfExists(Blueprint $table, string $indexName): void
     {
         $tableName = $table->getTable();
+        if (!Schema::hasTable($tableName)) {
+            return;
+        }
         
+        // Do not drop indexes that are required by a foreign key constraint
+        if ($this->isIndexRequiredByForeignKey($tableName, $indexName)) {
+            return;
+        }
+
         // Check if index exists
         $indexes = DB::select("SHOW INDEX FROM {$tableName}");
         $existingIndexes = array_column($indexes, 'Key_name');
@@ -202,11 +214,71 @@ return new class extends Migration
     }
 
     /**
+     * Check whether the given index is required by any FK on the table.
+     * This returns true if the FK columns equal the index columns, or match the
+     * leftmost prefix of the index columns (how InnoDB enforces FKs).
+     */
+    private function isIndexRequiredByForeignKey(string $tableName, string $indexName): bool
+    {
+        $databaseName = DB::getDatabaseName();
+
+        // Determine the indexed column sequence for the given index
+        $indexRows = DB::select('SHOW INDEX FROM ' . $tableName . ' WHERE Key_name = ?', [$indexName]);
+        if (empty($indexRows)) {
+            return false;
+        }
+
+        $indexColumnsBySeq = [];
+        foreach ($indexRows as $row) {
+            $indexColumnsBySeq[(int)($row->Seq_in_index ?? 0)] = $row->Column_name;
+        }
+        ksort($indexColumnsBySeq);
+        $indexedColumns = array_values($indexColumnsBySeq);
+
+        // Fetch all FK constraints and their column sequences for this table
+        $fkRows = DB::select(
+            'SELECT CONSTRAINT_NAME, COLUMN_NAME, ORDINAL_POSITION
+             FROM information_schema.KEY_COLUMN_USAGE
+             WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND REFERENCED_TABLE_NAME IS NOT NULL
+             ORDER BY CONSTRAINT_NAME, ORDINAL_POSITION',
+            [$databaseName, $tableName]
+        );
+
+        if (empty($fkRows)) {
+            return false;
+        }
+
+        // Group FK columns by constraint preserving order
+        $fkColumnsByConstraint = [];
+        foreach ($fkRows as $row) {
+            $constraint = $row->CONSTRAINT_NAME;
+            $position = (int)$row->ORDINAL_POSITION;
+            if (!isset($fkColumnsByConstraint[$constraint])) {
+                $fkColumnsByConstraint[$constraint] = [];
+            }
+            $fkColumnsByConstraint[$constraint][$position] = $row->COLUMN_NAME;
+        }
+        foreach ($fkColumnsByConstraint as $colsByPos) {
+            ksort($colsByPos);
+            $fkColumns = array_values($colsByPos);
+            $prefix = array_slice($indexedColumns, 0, count($fkColumns));
+            if ($fkColumns === $prefix) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Add index if columns exist and index doesn't exist
      */
     private function addIndexIfColumnExists(Blueprint $table, array $columns, string $indexName): void
     {
         $tableName = $table->getTable();
+        if (!Schema::hasTable($tableName)) {
+            return;
+        }
         
         // Check if all columns exist
         $tableColumns = DB::select("SHOW COLUMNS FROM {$tableName}");
