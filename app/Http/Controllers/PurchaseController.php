@@ -73,7 +73,7 @@ class PurchaseController extends BaseController
             'createdBy:id,user_id,name,email',
             'items:id,purchase_id,product_id,variant_id,quantity_ordered,quantity_received,unit_cost,total_cost',
             'items.product:id,product_id,name,sku,status',
-            'items.variant:id,variant_id,product_id,name,sku'
+            'items.variant:variant_id,product_id,name,sku'
         ]);
 
         return $this->paginatedResponse($query, $request, 'Purchases retrieved successfully');
@@ -190,7 +190,7 @@ class PurchaseController extends BaseController
                 'createdBy:id,user_id,name,email',
                 'items:id,purchase_id,product_id,variant_id,quantity_ordered,quantity_received,unit_cost,total_cost',
                 'items.product:id,product_id,name,sku,status',
-                'items.variant:id,variant_id,product_id,name,sku'
+                'items.variant:variant_id,product_id,name,sku'
             ]);
 
             return $this->successResponse($purchase, 'Purchase created successfully', 201);
@@ -217,7 +217,7 @@ class PurchaseController extends BaseController
                 'createdBy:id,user_id,name,email',
                 'items:id,purchase_id,product_id,variant_id,quantity_ordered,quantity_received,unit_cost,total_cost',
                 'items.product:id,product_id,name,sku,status,selling_price,stock_quantity',
-                'items.variant:id,variant_id,product_id,name,sku,price'
+                'items.variant:variant_id,product_id,name,sku'
             ])
             ->find($id);
 
@@ -291,7 +291,7 @@ class PurchaseController extends BaseController
                 'createdBy:id,user_id,name,email',
                 'items:id,purchase_id,product_id,variant_id,quantity_ordered,quantity_received,unit_cost,total_cost',
                 'items.product:id,product_id,name,sku,status',
-                'items.variant:id,variant_id,product_id,name,sku'
+                'items.variant:variant_id,product_id,name,sku'
             ]);
 
             return $this->successResponse($purchase, 'Purchase updated successfully');
@@ -480,7 +480,7 @@ class PurchaseController extends BaseController
                 'shop:id,shop_id,name,status,address',
                 'items:id,purchase_id,product_id,variant_id,quantity_ordered,quantity_received,unit_cost,total_cost',
                 'items.product:id,product_id,name,sku,status',
-                'items.variant:id,variant_id,product_id,name,sku'
+                'items.variant:variant_id,product_id,name,sku'
             ]);
 
             return $this->successResponse([

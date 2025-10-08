@@ -62,7 +62,7 @@ class InventoryController extends BaseController
         // Optimize with eager loading and specific columns
         $query->with([
             'product:id,product_id,name,sku,status',
-            'variant:id,variant_id,product_id,name,sku',
+            'variant:variant_id,product_id,name,sku',
             'warehouse:id,warehouse_id,name,status,address',
             'shop:id,shop_id,name,status,address',
             'createdBy:id,user_id,name,email'
@@ -179,7 +179,7 @@ class InventoryController extends BaseController
 
             $movement->load([
                 'product:id,product_id,name,sku,status',
-                'variant:id,variant_id,product_id,name,sku',
+                'variant:variant_id,product_id,name,sku',
                 'warehouse:id,warehouse_id,name,status,address',
                 'shop:id,shop_id,name,status,address',
                 'createdBy:id,user_id,name,email'

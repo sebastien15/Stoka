@@ -91,7 +91,7 @@ class ProductController extends BaseController
             'supplier:id,supplier_id,name,status',
             'shop:id,shop_id,name,status',
             'warehouse:id,warehouse_id,name,status',
-            'variants:id,variant_id,product_id,name,sku,price,stock_quantity,status'
+            'variants:variant_id,product_id,name,sku,stock_quantity,is_active as status'
         ]);
 
         return $this->paginatedResponse($query, $request, 'Products retrieved successfully');
@@ -212,7 +212,7 @@ class ProductController extends BaseController
                 'supplier:id,supplier_id,name,status,contact_person,email,phone',
                 'shop:id,shop_id,name,status,address',
                 'warehouse:id,warehouse_id,name,status,address',
-                'variants:id,variant_id,product_id,name,sku,price,stock_quantity,status'
+                'variants:variant_id,product_id,name,sku,stock_quantity,is_active as status'
             ])
             ->find($id);
 

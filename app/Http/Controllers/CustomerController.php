@@ -26,7 +26,7 @@ class CustomerController extends BaseController
         $query = User::where('role', 'customer')
             ->where('tenant_id', $this->tenant->tenant_id)
             ->with([
-                'customerProfile:id,customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent',
+                'customerProfile:customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent',
                 'orders' => function($q) {
                     $q->select('order_id', 'customer_id', 'total_amount', 'status', 'created_at')
                       ->orderBy('created_at', 'desc')
@@ -180,7 +180,7 @@ class CustomerController extends BaseController
             DB::commit();
 
             // Load relationships for response
-            $customer->load(['customerProfile:id,customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent']);
+            $customer->load(['customerProfile:customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent']);
 
             return $this->successResponse($customer, 'Customer created successfully', 201);
 
@@ -203,7 +203,7 @@ class CustomerController extends BaseController
             ->where('role', 'customer')
             ->where('tenant_id', $this->tenant->tenant_id)
             ->with([
-                'customerProfile:id,customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent',
+                'customerProfile:customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent',
                 'orders' => function($q) {
                     $q->select('order_id', 'customer_id', 'order_number', 'status', 'total_amount', 'order_date', 'created_at')
                       ->orderBy('created_at', 'desc');
@@ -300,7 +300,7 @@ class CustomerController extends BaseController
 
             DB::commit();
 
-            $customer->load(['customerProfile:id,customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent']);
+            $customer->load(['customerProfile:customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent']);
 
             return $this->successResponse($customer, 'Customer updated successfully');
 

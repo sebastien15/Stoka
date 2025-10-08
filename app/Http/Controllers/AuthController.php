@@ -343,9 +343,9 @@ class AuthController extends BaseController
         $user = auth()->user();
         // Optimize with eager loading and specific columns
         $user->load([
-            'warehouse:id,warehouse_id,name,status,address',
-            'shop:id,shop_id,name,status,address',
-            'customerProfile:id,customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent'
+            'warehouse:warehouse_id,name,is_active as status,address',
+            'shop:shop_id,name,is_active as status,address',
+            'customerProfile:customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent'
         ]);
 
         $profileData = [
@@ -753,11 +753,11 @@ class AuthController extends BaseController
             if ($isNewTenantRegistration) {
                 // Create tenant automatically for first user
                 $tenantData = [
-                    'tenant_code' => strtoupper(substr($userData['company_name'], 0, 3)) . '001',
+                    'tenant_code' => $this->generateUniqueTenantCode($userData['company_name']),
                     'company_name' => $userData['company_name'],
                     'business_type' => $userData['business_type'] ?? 'retail',
                     'contact_person' => $userData['full_name'],
-                    'email' => $userData['email'],
+                    'email' => $this->generateUniqueTenantEmail($userData['email'], $userData['company_name']),
                     'phone_number' => $userData['phone_number'] ?? null,
                     'website_url' => $userData['website_url'] ?? null,
                     'address' => $userData['address'] ?? null,
@@ -870,9 +870,9 @@ class AuthController extends BaseController
 
             // Optimize with eager loading and specific columns
             $user->load([
-                'warehouse:id,warehouse_id,name,status,address',
-                'shop:id,shop_id,name,status,address',
-                'customerProfile:id,customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent'
+                'warehouse:warehouse_id,name,is_active as status,address',
+                'shop:shop_id,name,is_active as status,address',
+                'customerProfile:customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent'
             ]);
 
             $responseData = [
@@ -953,4 +953,73 @@ class AuthController extends BaseController
         Cache::forget("user_permissions_{$userId}");
     }
     
+    /**
+     * Generate a unique tenant code based on company name.
+     * Format: AAA### where AAA are letters from the name, ### is a zero-padded sequence.
+     */
+    private function generateUniqueTenantCode(string $companyName): string
+    {
+        // Extract letters from name and take first 3, fallback to TEN
+        $lettersOnly = preg_replace('/[^A-Za-z]/', '', $companyName);
+        $prefix = strtoupper(substr($lettersOnly ?: 'TEN', 0, 3));
+
+        // Ensure 3 characters
+        $prefix = str_pad($prefix, 3, 'X');
+
+        // Try incremental numeric suffix until available
+        for ($i = 1; $i <= 999; $i++) {
+            $code = $prefix . str_pad((string)$i, 3, '0', STR_PAD_LEFT);
+            if (!\App\Models\Tenant::where('tenant_code', $code)->exists()) {
+                return $code;
+            }
+        }
+
+        // Fallback: random 3 digits
+        do {
+            $code = $prefix . str_pad((string)random_int(0, 999), 3, '0', STR_PAD_LEFT);
+        } while (\App\Models\Tenant::where('tenant_code', $code)->exists());
+
+        return $code;
+    }
+
+    /**
+     * Generate a unique tenant email. If the provided email already exists on tenants,
+     * append "+<suffix>" before the @ when possible; otherwise use a unique fallback domain.
+     */
+    private function generateUniqueTenantEmail(string $email, string $companyName): string
+    {
+        $suffixBase = strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $companyName) ?: 'TEN', 0, 3));
+        $suffixBase = str_pad($suffixBase, 3, 'X');
+
+        // If not taken, return as-is
+        if (!\App\Models\Tenant::where('email', $email)->exists()) {
+            return $email;
+        }
+
+        // Try plus addressing if email has domain
+        if (strpos($email, '@') !== false) {
+            [$local, $domain] = explode('@', $email, 2);
+            for ($i = 1; $i <= 999; $i++) {
+                $candidate = $local . "+{$suffixBase}" . str_pad((string)$i, 2, '0', STR_PAD_LEFT) . '@' . $domain;
+                if (!\App\Models\Tenant::where('email', $candidate)->exists()) {
+                    return $candidate;
+                }
+            }
+        }
+
+        // Fallback to unique synthetic email at a safe local domain
+        for ($i = 1; $i <= 9999; $i++) {
+            $candidate = strtolower($suffixBase) . $i . '@tenants.local';
+            if (!\App\Models\Tenant::where('email', $candidate)->exists()) {
+                return $candidate;
+            }
+        }
+
+        // Last resort, random
+        do {
+            $candidate = strtolower($suffixBase) . random_int(10000, 99999) . '@tenants.local';
+        } while (\App\Models\Tenant::where('email', $candidate)->exists());
+
+        return $candidate;
+    }
 }

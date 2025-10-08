@@ -56,7 +56,7 @@ class WarehouseController extends BaseController
         $query->with([
             'manager:id,user_id,name,email,phone_number',
             'products:id,product_id,name,sku,status,stock_quantity,selling_price',
-            'shops:id,shop_id,name,status,address'
+            'shops:shop_id,name,is_active as status,address'
         ])
         ->withCount(['products', 'shops']);
 
@@ -126,7 +126,7 @@ class WarehouseController extends BaseController
             $warehouse->load([
                 'manager:id,user_id,name,email,phone_number',
                 'products:id,product_id,name,sku,status,stock_quantity',
-                'shops:id,shop_id,name,status,address'
+                'shops:shop_id,name,is_active as status,address'
             ]);
 
             return $this->successResponse($warehouse, 'Warehouse created successfully', 201);
@@ -355,7 +355,7 @@ class WarehouseController extends BaseController
         $query = $warehouse->inventoryMovements()
             ->with([
                 'product:id,product_id,name,sku,status',
-                'variant:id,variant_id,product_id,name,sku',
+                'variant:variant_id,product_id,name,sku',
                 'createdBy:id,user_id,name,email'
             ]);
 
