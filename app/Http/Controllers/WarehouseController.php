@@ -52,9 +52,13 @@ class WarehouseController extends BaseController
             $query->where('capacity', '<=', $request->get('max_capacity'));
         }
 
-        // Load relationships
-        $query->with(['manager', 'products', 'shops'])
-             ->withCount(['products', 'shops']);
+        // Optimize with eager loading and specific columns
+        $query->with([
+            'manager:id,user_id,name,email,phone_number',
+            'products:id,product_id,name,sku,status,stock_quantity,selling_price',
+            'shops:id,shop_id,name,status,address'
+        ])
+        ->withCount(['products', 'shops']);
 
         return $this->paginatedResponse($query, $request, 'Warehouses retrieved successfully');
     }
@@ -119,7 +123,11 @@ class WarehouseController extends BaseController
 
             DB::commit();
 
-            $warehouse->load(['manager', 'products', 'shops']);
+            $warehouse->load([
+                'manager:id,user_id,name,email,phone_number',
+                'products:id,product_id,name,sku,status,stock_quantity',
+                'shops:id,shop_id,name,status,address'
+            ]);
 
             return $this->successResponse($warehouse, 'Warehouse created successfully', 201);
 
@@ -138,7 +146,11 @@ class WarehouseController extends BaseController
         $this->requirePermission('warehouses.view');
 
         $warehouse = $this->applyTenantScope(Warehouse::query())
-            ->with(['manager', 'products', 'shops'])
+            ->with([
+                'manager:id,user_id,name,email,phone_number',
+                'products:id,product_id,name,sku,status,stock_quantity,selling_price',
+                'shops:id,shop_id,name,status,address'
+            ])
             ->withCount(['products', 'shops'])
             ->find($id);
 
@@ -158,7 +170,10 @@ class WarehouseController extends BaseController
 
         // Get recent inventory movements
         $warehouse->recent_movements = $warehouse->inventoryMovements()
-            ->with(['product', 'createdBy'])
+            ->with([
+                'product:id,product_id,name,sku,status',
+                'createdBy:id,user_id,name,email'
+            ])
             ->latest()
             ->limit(10)
             ->get();
@@ -231,7 +246,11 @@ class WarehouseController extends BaseController
 
             DB::commit();
 
-            $warehouse->load(['manager', 'products', 'shops']);
+            $warehouse->load([
+                'manager:id,user_id,name,email,phone_number',
+                'products:id,product_id,name,sku,status,stock_quantity',
+                'shops:id,shop_id,name,status,address'
+            ]);
 
             return $this->successResponse($warehouse, 'Warehouse updated successfully');
 
@@ -297,7 +316,11 @@ class WarehouseController extends BaseController
             return $this->errorResponse('Warehouse not found', 404);
         }
 
-        $query = $warehouse->products()->with(['category', 'brand', 'supplier']);
+        $query = $warehouse->products()->with([
+            'category:id,category_id,name,status',
+            'brand:id,brand_id,name,status',
+            'supplier:id,supplier_id,name,contact_person,email'
+        ]);
 
         // Apply product filters
         if ($request->has('status')) {
@@ -330,7 +353,11 @@ class WarehouseController extends BaseController
         }
 
         $query = $warehouse->inventoryMovements()
-            ->with(['product', 'variant', 'createdBy']);
+            ->with([
+                'product:id,product_id,name,sku,status',
+                'variant:id,variant_id,product_id,name,sku',
+                'createdBy:id,user_id,name,email'
+            ]);
 
         // Apply movement filters
         if ($request->has('movement_type')) {

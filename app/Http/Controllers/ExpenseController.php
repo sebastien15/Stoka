@@ -78,8 +78,13 @@ class ExpenseController extends BaseController
             $query->where('amount', '<=', $request->get('max_amount'));
         }
 
-        // Load relationships
-        $query->with(['shop', 'warehouse', 'approvedBy', 'createdBy']);
+        // Optimize with eager loading and specific columns
+        $query->with([
+            'shop:id,shop_id,name,status,address',
+            'warehouse:id,warehouse_id,name,status,address',
+            'approvedBy:id,user_id,name,email',
+            'createdBy:id,user_id,name,email'
+        ]);
 
         return $this->paginatedResponse($query, $request, 'Expenses retrieved successfully');
     }
@@ -142,7 +147,12 @@ class ExpenseController extends BaseController
 
             DB::commit();
 
-            $expense->load(['shop', 'warehouse', 'approvedBy', 'createdBy']);
+            $expense->load([
+                'shop:id,shop_id,name,status,address',
+                'warehouse:id,warehouse_id,name,status,address',
+                'approvedBy:id,user_id,name,email',
+                'createdBy:id,user_id,name,email'
+            ]);
 
             return $this->successResponse($expense, 'Expense created successfully', 201);
 
@@ -161,7 +171,12 @@ class ExpenseController extends BaseController
         $this->requirePermission('expenses.view');
 
         $expense = $this->applyTenantScope(Expense::query())
-            ->with(['shop', 'warehouse', 'approvedBy', 'createdBy'])
+            ->with([
+                'shop:id,shop_id,name,status,address',
+                'warehouse:id,warehouse_id,name,status,address',
+                'approvedBy:id,user_id,name,email',
+                'createdBy:id,user_id,name,email'
+            ])
             ->find($id);
 
         if (!$expense) {
@@ -251,7 +266,12 @@ class ExpenseController extends BaseController
 
             DB::commit();
 
-            $expense->load(['shop', 'warehouse', 'approvedBy', 'createdBy']);
+            $expense->load([
+                'shop:id,shop_id,name,status,address',
+                'warehouse:id,warehouse_id,name,status,address',
+                'approvedBy:id,user_id,name,email',
+                'createdBy:id,user_id,name,email'
+            ]);
 
             return $this->successResponse($expense, 'Expense updated successfully');
 
@@ -475,7 +495,11 @@ class ExpenseController extends BaseController
 
         $query = $this->applyTenantScope(Expense::query())
             ->pending()
-            ->with(['shop', 'warehouse', 'createdBy']);
+            ->with([
+                'shop:id,shop_id,name,status,address',
+                'warehouse:id,warehouse_id,name,status,address',
+                'createdBy:id,user_id,name,email'
+            ]);
 
         return $this->paginatedResponse($query, $request, 'Pending expense approvals retrieved successfully');
     }
@@ -490,7 +514,12 @@ class ExpenseController extends BaseController
 
         $query = $this->applyTenantScope(Expense::query())
             ->overdue()
-            ->with(['shop', 'warehouse', 'createdBy', 'approvedBy']);
+            ->with([
+                'shop:id,shop_id,name,status,address',
+                'warehouse:id,warehouse_id,name,status,address',
+                'createdBy:id,user_id,name,email',
+                'approvedBy:id,user_id,name,email'
+            ]);
 
         return $this->paginatedResponse($query, $request, 'Overdue expenses retrieved successfully');
     }

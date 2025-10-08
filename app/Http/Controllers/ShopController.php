@@ -54,9 +54,14 @@ class ShopController extends BaseController
             $query->where('delivery_enabled', (bool) $request->get('delivery_enabled'));
         }
 
-        // Load relationships
-        $query->with(['manager', 'warehouse', 'products', 'orders'])
-             ->withCount(['products', 'orders']);
+        // Optimize with eager loading and specific columns
+        $query->with([
+            'manager:id,user_id,name,email,phone_number',
+            'warehouse:id,warehouse_id,name,status,address',
+            'products:id,product_id,name,sku,status,stock_quantity,selling_price',
+            'orders:id,order_id,order_number,status,total_amount,order_date'
+        ])
+        ->withCount(['products', 'orders']);
 
         return $this->paginatedResponse($query, $request, 'Shops retrieved successfully');
     }
@@ -133,7 +138,12 @@ class ShopController extends BaseController
 
             DB::commit();
 
-            $shop->load(['manager', 'warehouse', 'products', 'orders']);
+            $shop->load([
+                'manager:id,user_id,name,email,phone_number',
+                'warehouse:id,warehouse_id,name,status,address',
+                'products:id,product_id,name,sku,status,stock_quantity',
+                'orders:id,order_id,order_number,status,total_amount'
+            ]);
 
             return $this->successResponse($shop, 'Shop created successfully', 201);
 
@@ -152,7 +162,12 @@ class ShopController extends BaseController
         $this->requirePermission('shops.view');
 
         $shop = $this->applyTenantScope(Shop::query())
-            ->with(['manager', 'warehouse', 'products', 'orders'])
+            ->with([
+                'manager:id,user_id,name,email,phone_number',
+                'warehouse:id,warehouse_id,name,status,address',
+                'products:id,product_id,name,sku,status,stock_quantity,selling_price',
+                'orders:id,order_id,order_number,status,total_amount,order_date'
+            ])
             ->withCount(['products', 'orders'])
             ->find($id);
 
@@ -253,7 +268,12 @@ class ShopController extends BaseController
 
             DB::commit();
 
-            $shop->load(['manager', 'warehouse', 'products', 'orders']);
+            $shop->load([
+                'manager:id,user_id,name,email,phone_number',
+                'warehouse:id,warehouse_id,name,status,address',
+                'products:id,product_id,name,sku,status,stock_quantity',
+                'orders:id,order_id,order_number,status,total_amount'
+            ]);
 
             return $this->successResponse($shop, 'Shop updated successfully');
 
@@ -319,7 +339,11 @@ class ShopController extends BaseController
             return $this->errorResponse('Shop not found', 404);
         }
 
-        $query = $shop->products()->with(['category', 'brand', 'supplier']);
+        $query = $shop->products()->with([
+            'category:id,category_id,name,status',
+            'brand:id,brand_id,name,status',
+            'supplier:id,supplier_id,name,contact_person,email'
+        ]);
 
         // Apply product filters
         if ($request->has('status')) {
@@ -351,7 +375,11 @@ class ShopController extends BaseController
             return $this->errorResponse('Shop not found', 404);
         }
 
-        $query = $shop->orders()->with(['customer', 'items.product']);
+        $query = $shop->orders()->with([
+            'customer:id,user_id,name,email,phone_number',
+            'items:id,order_item_id,order_id,product_id,quantity,unit_price,total_price',
+            'items.product:id,product_id,name,sku,status'
+        ]);
 
         // Apply order filters
         if ($request->has('status')) {

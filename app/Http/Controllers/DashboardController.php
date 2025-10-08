@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Customer;
 use App\Models\Expense;
 use App\Models\InventoryMovement;
+use App\Services\QueryOptimizationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -149,31 +150,7 @@ class DashboardController extends BaseController
      */
     private function getSummaryStats(): array
     {
-        $today = now()->startOfDay();
-        $thisMonth = now()->startOfMonth();
-        $lastMonth = now()->subMonth()->startOfMonth();
-
-        $ordersQuery = $this->applyTenantScope(Order::query());
-        $productsQuery = $this->applyTenantScope(Product::query());
-        $usersQuery = $this->applyTenantScope(User::query());
-
-        return [
-            'total_orders' => $ordersQuery->count(),
-            'orders_today' => $ordersQuery->whereDate('order_date', $today)->count(),
-            'orders_this_month' => $ordersQuery->whereDate('order_date', '>=', $thisMonth)->count(),
-            
-            'total_revenue' => $ordersQuery->where('status', 'delivered')->sum('total_amount'),
-            'revenue_today' => $ordersQuery->where('status', 'delivered')->whereDate('delivered_at', $today)->sum('total_amount'),
-            'revenue_this_month' => $ordersQuery->where('status', 'delivered')->whereDate('delivered_at', '>=', $thisMonth)->sum('total_amount'),
-            
-            'total_products' => $productsQuery->count(),
-            'active_products' => $productsQuery->active()->count(),
-            'low_stock_products' => $productsQuery->lowStock()->count(),
-            
-            'total_customers' => $usersQuery->customers()->count(),
-            'new_customers_today' => $usersQuery->customers()->whereDate('created_at', $today)->count(),
-            'new_customers_this_month' => $usersQuery->customers()->whereDate('created_at', '>=', $thisMonth)->count()
-        ];
+        return QueryOptimizationService::getOptimizedDashboardStats($this->tenant->tenant_id);
     }
 
     /**
@@ -182,13 +159,19 @@ class DashboardController extends BaseController
     private function getRecentActivity(): array
     {
         $recentOrders = $this->applyTenantScope(Order::query())
-            ->with(['customer', 'shop'])
+            ->with([
+                'customer:id,user_id,name,email',
+                'shop:id,shop_id,name,status'
+            ])
             ->latest('order_date')
             ->limit(5)
             ->get();
 
         $recentProducts = $this->applyTenantScope(Product::query())
-            ->with(['category', 'shop'])
+            ->with([
+                'category:id,category_id,name',
+                'shop:id,shop_id,name,status'
+            ])
             ->latest('created_at')
             ->limit(5)
             ->get();
@@ -416,7 +399,10 @@ class DashboardController extends BaseController
     {
         return $this->applyTenantScope(Product::query())
             ->lowStock()
-            ->with(['category', 'shop'])
+            ->with([
+                'category:id,category_id,name',
+                'shop:id,shop_id,name,status'
+            ])
             ->orderBy('stock_quantity')
             ->limit(10)
             ->get()
@@ -448,7 +434,10 @@ class DashboardController extends BaseController
     private function getRecentInventoryMovements(): array
     {
         return $this->applyTenantScope(InventoryMovement::query())
-            ->with(['product', 'createdBy'])
+            ->with([
+                'product:id,product_id,name,sku',
+                'createdBy:id,user_id,name,email'
+            ])
             ->latest()
             ->limit(10)
             ->get()

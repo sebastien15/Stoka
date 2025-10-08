@@ -55,8 +55,8 @@ class AuditController extends BaseController
             $query->whereDate('created_at', '<=', $request->get('date_to'));
         }
 
-        // Load relationships
-        $query->with('user');
+        // Optimize with eager loading and specific columns
+        $query->with('user:id,user_id,full_name,email,role');
 
         // Order by latest first
         $query->latest('created_at');
@@ -73,7 +73,7 @@ class AuditController extends BaseController
         $this->requirePermission('audit.view');
 
         $auditLog = $this->applyTenantScope(AuditLog::query())
-            ->with('user')
+            ->with('user:id,user_id,full_name,email,role')
             ->find($id);
 
         if (!$auditLog) {
@@ -113,7 +113,7 @@ class AuditController extends BaseController
         $query = $this->applyTenantScope(AuditLog::query())
             ->where('table_name', $request->table_name)
             ->where('record_id', $request->record_id)
-            ->with('user')
+            ->with('user:id,user_id,full_name,email,role')
             ->latest('created_at');
 
         return $this->paginatedResponse($query, $request, 'Record audit trail retrieved successfully');
@@ -135,7 +135,7 @@ class AuditController extends BaseController
 
         $query = $this->applyTenantScope(AuditLog::query())
             ->where('user_id', $userId)
-            ->with('user')
+            ->with('user:id,user_id,full_name,email,role')
             ->latest('created_at');
 
         // Action filter
@@ -222,7 +222,7 @@ class AuditController extends BaseController
         $limit = min($request->get('limit', 50), 100); // Max 100 items
 
         $recentLogs = $this->applyTenantScope(AuditLog::query())
-            ->with('user')
+            ->with('user:id,user_id,full_name,email,role')
             ->latest('created_at')
             ->limit($limit)
             ->get();
@@ -246,7 +246,7 @@ class AuditController extends BaseController
 
         $query = $this->applyTenantScope(AuditLog::query())
             ->whereIn('action', $securityActions)
-            ->with('user')
+            ->with('user:id,user_id,full_name,email,role')
             ->latest('created_at');
 
         // Date range filters
@@ -270,7 +270,7 @@ class AuditController extends BaseController
 
         $query = $this->applyTenantScope(AuditLog::query())
             ->where('action', 'login_failed')
-            ->with('user')
+            ->with('user:id,user_id,full_name,email,role')
             ->latest('created_at');
 
         // IP address filter
@@ -311,7 +311,7 @@ class AuditController extends BaseController
         }
 
         $query = $this->applyTenantScope(AuditLog::query())
-            ->with('user');
+            ->with('user:id,user_id,full_name,email,role');
 
         // Apply filters
         if ($request->has('date_from')) {
@@ -378,7 +378,7 @@ class AuditController extends BaseController
 
         $query = $this->applyTenantScope(AuditLog::query())
             ->whereIn('action', $systemActions)
-            ->with('user')
+            ->with('user:id,user_id,full_name,email,role')
             ->latest('created_at');
 
         return $this->paginatedResponse($query, $request, 'System changes retrieved successfully');

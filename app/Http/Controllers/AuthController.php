@@ -10,6 +10,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 
 class AuthController extends BaseController
@@ -43,17 +44,28 @@ class AuthController extends BaseController
         try {
             DB::beginTransaction();
 
-            // Resolve tenant if provided
+            // Optimize tenant lookup with caching
             $tenant = null;
             if ($request->tenant_code) {
-                $tenant = Tenant::where('tenant_code', $request->tenant_code)->first();
+                $cacheKey = "tenant_code_{$request->tenant_code}";
+                $tenant = Cache::remember($cacheKey, 300, function () use ($request) { // 5 minutes cache
+                    return Tenant::select([
+                        'tenant_id', 'tenant_code', 'company_name', 'status', 'is_trial',
+                        'logo_url', 'primary_color', 'secondary_color', 'subscription_plan'
+                    ])->where('tenant_code', $request->tenant_code)->first();
+                });
+                
                 if (!$tenant || !$tenant->isActive()) {
                     return $this->errorResponse('Tenant not found or inactive', 403);
                 }
             }
 
-            // Find user by verifying hashed PIN
-            $userQuery = User::query()->whereNotNull('pin')->where('is_active', true);
+            // Optimize PIN lookup with specific columns
+            $userQuery = User::select([
+                'user_id', 'full_name', 'email', 'pin', 'role', 'is_active', 
+                'tenant_id', 'warehouse_id', 'shop_id', 'profile_image_url'
+            ])->whereNotNull('pin')->where('is_active', true);
+            
             if ($tenant) {
                 $userQuery->where('tenant_id', $tenant->tenant_id);
             }
@@ -156,8 +168,11 @@ class AuthController extends BaseController
         try {
             DB::beginTransaction();
 
-            // Find user by email
-            $user = User::where('email', $request->email)->first();
+            // Optimize user lookup with specific columns
+            $user = User::select([
+                'user_id', 'full_name', 'email', 'password', 'role', 'is_active', 
+                'tenant_id', 'warehouse_id', 'shop_id', 'profile_image_url'
+            ])->where('email', $request->email)->first();
 
             if (!$user || !Hash::check($request->password, $user->password)) {
                 return $this->errorResponse('Invalid credentials', 401);
@@ -168,18 +183,30 @@ class AuthController extends BaseController
                 return $this->errorResponse('Account is deactivated', 403);
             }
 
-            // Get tenant - handle super admin users
+            // Optimize tenant resolution with caching
             $tenant = null;
             if ($user->isSuperAdmin()) {
                 // Super admin can login with any tenant or without tenant
                 if ($request->tenant_code) {
-                    $tenant = Tenant::where('tenant_code', $request->tenant_code)->first();
+                    $cacheKey = "tenant_code_{$request->tenant_code}";
+                    $tenant = Cache::remember($cacheKey, 300, function () use ($request) {
+                        return Tenant::select([
+                            'tenant_id', 'tenant_code', 'company_name', 'status', 'is_trial',
+                            'logo_url', 'primary_color', 'secondary_color', 'subscription_plan'
+                        ])->where('tenant_code', $request->tenant_code)->first();
+                    });
                     if (!$tenant || !$tenant->isActive()) {
                         return $this->errorResponse('Invalid tenant or tenant is inactive', 403);
                     }
                 } else {
-                    // Super admin without tenant_code - use first active tenant or create a default response
-                    $tenant = Tenant::where('status', 'active')->first();
+                    // Super admin without tenant_code - use first active tenant
+                    $cacheKey = "first_active_tenant";
+                    $tenant = Cache::remember($cacheKey, 60, function () { // 1 minute cache
+                        return Tenant::select([
+                            'tenant_id', 'tenant_code', 'company_name', 'status', 'is_trial',
+                            'logo_url', 'primary_color', 'secondary_color', 'subscription_plan'
+                        ])->where('status', 'active')->first();
+                    });
                     if (!$tenant) {
                         return $this->errorResponse('No active tenants found', 403);
                     }
@@ -187,7 +214,13 @@ class AuthController extends BaseController
             } else {
                 // Regular users must belong to a tenant
                 if ($request->tenant_code) {
-                    $tenant = Tenant::where('tenant_code', $request->tenant_code)->first();
+                    $cacheKey = "tenant_code_{$request->tenant_code}";
+                    $tenant = Cache::remember($cacheKey, 300, function () use ($request) {
+                        return Tenant::select([
+                            'tenant_id', 'tenant_code', 'company_name', 'status', 'is_trial',
+                            'logo_url', 'primary_color', 'secondary_color', 'subscription_plan'
+                        ])->where('tenant_code', $request->tenant_code)->first();
+                    });
                     if (!$tenant || $tenant->tenant_id !== $user->tenant_id) {
                         return $this->errorResponse('Invalid tenant or user does not belong to this tenant', 403);
                     }
@@ -308,7 +341,12 @@ class AuthController extends BaseController
         }
 
         $user = auth()->user();
-        $user->load(['warehouse', 'shop', 'customerProfile']);
+        // Optimize with eager loading and specific columns
+        $user->load([
+            'warehouse:id,warehouse_id,name,status,address',
+            'shop:id,shop_id,name,status,address',
+            'customerProfile:id,customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent'
+        ]);
 
         $profileData = [
             'user' => $user,
@@ -321,7 +359,9 @@ class AuthController extends BaseController
                 'secondary_color' => $this->tenant->secondary_color
             ],
             'permissions' => $user->getPermissions(),
-            'recent_activity' => \App\Models\AuditLog::where('user_id', $user->user_id)
+            'recent_activity' => \App\Models\AuditLog::select([
+                'log_id', 'action', 'table_name', 'record_id', 'created_at'
+            ])->where('user_id', $user->user_id)
                 ->latest()
                 ->limit(10)
                 ->get()
@@ -597,7 +637,12 @@ class AuthController extends BaseController
             return $this->errorResponse('Unauthenticated', 401);
         }
 
+        // Optimize sessions query with specific columns
         $sessions = auth()->user()->userSessions()
+            ->select([
+                'session_id', 'is_active', 'login_at', 'logout_at', 
+                'ip_address', 'user_agent', 'created_at'
+            ])
             ->orderBy('login_at', 'desc')
             ->limit(20)
             ->get()
@@ -823,8 +868,12 @@ class AuthController extends BaseController
 
             DB::commit();
 
-            // Load relationships for response
-            $user->load(['warehouse', 'shop', 'customerProfile']);
+            // Optimize with eager loading and specific columns
+            $user->load([
+                'warehouse:id,warehouse_id,name,status,address',
+                'shop:id,shop_id,name,status,address',
+                'customerProfile:id,customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent'
+            ]);
 
             $responseData = [
                 'user' => [
@@ -884,5 +933,24 @@ class AuthController extends BaseController
         }
     }
 
+    /**
+     * Get cached user permissions to avoid repeated database queries
+     */
+    private function getCachedUserPermissions($user): array
+    {
+        $cacheKey = "user_permissions_{$user->user_id}";
+        
+        return Cache::remember($cacheKey, 300, function () use ($user) { // 5 minutes cache
+            return $user->getPermissions();
+        });
+    }
+
+    /**
+     * Clear user permission cache when permissions change
+     */
+    private function clearUserPermissionCache($userId): void
+    {
+        Cache::forget("user_permissions_{$userId}");
+    }
     
 }

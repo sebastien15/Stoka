@@ -43,7 +43,12 @@ class SupplierController extends BaseController
             $query->withProducts();
         }
 
-        $query->withCount(['products', 'purchases']);
+        // Optimize with eager loading and specific columns
+        $query->withCount(['products', 'purchases'])
+            ->with([
+                'products:id,product_id,name,sku,status',
+                'purchases:id,purchase_id,purchase_number,status,total_amount,order_date'
+            ]);
 
         return $this->paginatedResponse($query, $request, 'Suppliers retrieved successfully');
     }
@@ -105,6 +110,10 @@ class SupplierController extends BaseController
 
         $supplier = $this->applyTenantScope(Supplier::query())
             ->withCount(['products', 'purchases'])
+            ->with([
+                'products:id,product_id,name,sku,status,selling_price,stock_quantity',
+                'purchases:id,purchase_id,purchase_number,status,total_amount,order_date,payment_status'
+            ])
             ->find($id);
 
         if (!$supplier) {
@@ -234,7 +243,12 @@ class SupplierController extends BaseController
             return $this->errorResponse('Supplier not found', 404);
         }
 
-        $query = $supplier->products()->with(['category', 'shop']);
+        $query = $supplier->products()->with([
+            'category:id,category_id,name,status',
+            'shop:id,shop_id,name,status',
+            'warehouse:id,warehouse_id,name,status',
+            'brand:id,brand_id,name,status'
+        ]);
 
         // Apply product filters
         if ($request->has('status')) {
@@ -258,7 +272,12 @@ class SupplierController extends BaseController
             return $this->errorResponse('Supplier not found', 404);
         }
 
-        $query = $supplier->purchases()->with(['warehouse', 'shop']);
+        $query = $supplier->purchases()->with([
+            'warehouse:id,warehouse_id,name,status,address',
+            'shop:id,shop_id,name,status,address',
+            'createdBy:id,user_id,name,email',
+            'items:id,purchase_id,product_id,variant_id,quantity_ordered,quantity_received,unit_cost,total_cost'
+        ]);
 
         // Apply purchase filters
         if ($request->has('status')) {

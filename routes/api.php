@@ -20,6 +20,7 @@ use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\NoticeController;
 use App\Http\Controllers\AuditController;
 use App\Http\Controllers\CustomerController;
+use App\Http\Controllers\PerformanceController;
 
 /*
 |--------------------------------------------------------------------------
@@ -130,6 +131,9 @@ Route::middleware([])->group(function () {
     // Audit routes
     Route::get('audit-logs', [AuditController::class, 'index']);
     Route::get('audit-logs/{id}', [AuditController::class, 'show']);
+    
+    // Performance monitoring routes
+    Route::get('performance/metrics', [PerformanceController::class, 'metrics']);
     
     // User profile
     Route::get('user', function (Request $request) {

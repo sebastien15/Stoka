@@ -65,8 +65,16 @@ class PurchaseController extends BaseController
             $query->where('total_amount', '<=', $request->get('max_amount'));
         }
 
-        // Load relationships
-        $query->with(['supplier', 'warehouse', 'shop', 'createdBy', 'items.product']);
+        // Optimize with eager loading and specific columns
+        $query->with([
+            'supplier:id,supplier_id,name,contact_person,email,phone_number,rating',
+            'warehouse:id,warehouse_id,name,status,address',
+            'shop:id,shop_id,name,status,address',
+            'createdBy:id,user_id,name,email',
+            'items:id,purchase_id,product_id,variant_id,quantity_ordered,quantity_received,unit_cost,total_cost',
+            'items.product:id,product_id,name,sku,status',
+            'items.variant:id,variant_id,product_id,name,sku'
+        ]);
 
         return $this->paginatedResponse($query, $request, 'Purchases retrieved successfully');
     }
@@ -175,7 +183,15 @@ class PurchaseController extends BaseController
 
             DB::commit();
 
-            $purchase->load(['supplier', 'warehouse', 'shop', 'createdBy', 'items.product', 'items.variant']);
+            $purchase->load([
+                'supplier:id,supplier_id,name,contact_person,email,phone_number,rating',
+                'warehouse:id,warehouse_id,name,status,address',
+                'shop:id,shop_id,name,status,address',
+                'createdBy:id,user_id,name,email',
+                'items:id,purchase_id,product_id,variant_id,quantity_ordered,quantity_received,unit_cost,total_cost',
+                'items.product:id,product_id,name,sku,status',
+                'items.variant:id,variant_id,product_id,name,sku'
+            ]);
 
             return $this->successResponse($purchase, 'Purchase created successfully', 201);
 
@@ -194,7 +210,15 @@ class PurchaseController extends BaseController
         $this->requirePermission('purchases.view');
 
         $purchase = $this->applyTenantScope(Purchase::query())
-            ->with(['supplier', 'warehouse', 'shop', 'createdBy', 'items.product', 'items.variant'])
+            ->with([
+                'supplier:id,supplier_id,name,contact_person,email,phone_number,rating,address',
+                'warehouse:id,warehouse_id,name,status,address',
+                'shop:id,shop_id,name,status,address',
+                'createdBy:id,user_id,name,email',
+                'items:id,purchase_id,product_id,variant_id,quantity_ordered,quantity_received,unit_cost,total_cost',
+                'items.product:id,product_id,name,sku,status,selling_price,stock_quantity',
+                'items.variant:id,variant_id,product_id,name,sku,price'
+            ])
             ->find($id);
 
         if (!$purchase) {
@@ -260,7 +284,15 @@ class PurchaseController extends BaseController
 
             DB::commit();
 
-            $purchase->load(['supplier', 'warehouse', 'shop', 'createdBy', 'items.product', 'items.variant']);
+            $purchase->load([
+                'supplier:id,supplier_id,name,contact_person,email,phone_number,rating',
+                'warehouse:id,warehouse_id,name,status,address',
+                'shop:id,shop_id,name,status,address',
+                'createdBy:id,user_id,name,email',
+                'items:id,purchase_id,product_id,variant_id,quantity_ordered,quantity_received,unit_cost,total_cost',
+                'items.product:id,product_id,name,sku,status',
+                'items.variant:id,variant_id,product_id,name,sku'
+            ]);
 
             return $this->successResponse($purchase, 'Purchase updated successfully');
 
@@ -442,7 +474,14 @@ class PurchaseController extends BaseController
 
             DB::commit();
 
-            $purchase->load(['supplier', 'warehouse', 'shop', 'items.product', 'items.variant']);
+            $purchase->load([
+                'supplier:id,supplier_id,name,contact_person,email,phone_number,rating',
+                'warehouse:id,warehouse_id,name,status,address',
+                'shop:id,shop_id,name,status,address',
+                'items:id,purchase_id,product_id,variant_id,quantity_ordered,quantity_received,unit_cost,total_cost',
+                'items.product:id,product_id,name,sku,status',
+                'items.variant:id,variant_id,product_id,name,sku'
+            ]);
 
             return $this->successResponse([
                 'purchase' => $purchase,
@@ -550,7 +589,7 @@ class PurchaseController extends BaseController
             'paid_amount' => $query->paid()->sum('total_amount'),
             'overdue_purchases' => $query->overdue()->count(),
             'purchases_by_supplier' => $query->join('suppliers', 'purchases.supplier_id', '=', 'suppliers.supplier_id')
-                ->selectRaw('suppliers.name, COUNT(*) as count, SUM(purchases.total_amount) as total')
+                ->selectRaw('suppliers.supplier_id, suppliers.name, COUNT(*) as count, SUM(purchases.total_amount) as total')
                 ->groupBy('suppliers.supplier_id', 'suppliers.name')
                 ->orderBy('total', 'desc')
                 ->limit(5)

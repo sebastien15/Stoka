@@ -32,7 +32,11 @@ class BrandController extends BaseController
             $query->withProducts();
         }
 
-        $query->withCount('products');
+        // Optimize with eager loading and specific columns
+        $query->withCount('products')
+            ->with([
+                'products:id,product_id,name,sku,status,selling_price,stock_quantity'
+            ]);
 
         return $this->paginatedResponse($query, $request, 'Brands retrieved successfully');
     }
@@ -89,6 +93,9 @@ class BrandController extends BaseController
 
         $brand = $this->applyTenantScope(Brand::query())
             ->withCount('products')
+            ->with([
+                'products:id,product_id,name,sku,status,selling_price,stock_quantity'
+            ])
             ->find($id);
 
         if (!$brand) {
@@ -208,7 +215,12 @@ class BrandController extends BaseController
             return $this->errorResponse('Brand not found', 404);
         }
 
-        $query = $brand->products()->with(['category', 'shop', 'warehouse']);
+        $query = $brand->products()->with([
+            'category:id,category_id,name,status',
+            'shop:id,shop_id,name,status,address',
+            'warehouse:id,warehouse_id,name,status,address',
+            'supplier:id,supplier_id,name,contact_person,email'
+        ]);
 
         // Apply product filters
         if ($request->has('status')) {
@@ -241,7 +253,7 @@ class BrandController extends BaseController
             'top_brands_by_products' => $query->withCount('products')
                 ->orderBy('products_count', 'desc')
                 ->limit(5)
-                ->get(['brand_id', 'name', 'products_count']),
+                ->get(['brand_id', 'name', 'products_count', 'status', 'is_active']),
             'top_brands_by_revenue' => $query->get()
                 ->map(function ($brand) {
                     return [

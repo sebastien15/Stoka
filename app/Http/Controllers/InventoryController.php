@@ -59,8 +59,14 @@ class InventoryController extends BaseController
             }
         }
 
-        // Load relationships
-        $query->with(['product', 'variant', 'warehouse', 'shop', 'createdBy']);
+        // Optimize with eager loading and specific columns
+        $query->with([
+            'product:id,product_id,name,sku,status',
+            'variant:id,variant_id,product_id,name,sku',
+            'warehouse:id,warehouse_id,name,status,address',
+            'shop:id,shop_id,name,status,address',
+            'createdBy:id,user_id,name,email'
+        ]);
 
         return $this->paginatedResponse($query, $request, 'Inventory movements retrieved successfully');
     }
@@ -171,7 +177,13 @@ class InventoryController extends BaseController
 
             DB::commit();
 
-            $movement->load(['product', 'variant', 'warehouse', 'shop', 'createdBy']);
+            $movement->load([
+                'product:id,product_id,name,sku,status',
+                'variant:id,variant_id,product_id,name,sku',
+                'warehouse:id,warehouse_id,name,status,address',
+                'shop:id,shop_id,name,status,address',
+                'createdBy:id,user_id,name,email'
+            ]);
 
             return $this->successResponse([
                 'movement' => $movement,
@@ -226,7 +238,12 @@ class InventoryController extends BaseController
         $this->requirePermission('inventory.view');
 
         $query = $this->applyTenantScope(Product::query())
-            ->with(['category', 'brand', 'shop', 'warehouse']);
+            ->with([
+                'category:id,category_id,name,status',
+                'brand:id,brand_id,name,status',
+                'shop:id,shop_id,name,status,address',
+                'warehouse:id,warehouse_id,name,status,address'
+            ]);
 
         // Filter by status
         if ($request->has('stock_status')) {
@@ -331,7 +348,10 @@ class InventoryController extends BaseController
         $this->requirePermission('inventory.view');
 
         $query = $this->applyTenantScope(Product::query())
-            ->with(['category', 'brand']);
+            ->with([
+                'category:id,category_id,name,status',
+                'brand:id,brand_id,name,status'
+            ]);
 
         // Category filter
         if ($request->has('category_id')) {
@@ -392,23 +412,39 @@ class InventoryController extends BaseController
         $alerts = [
             'low_stock' => $this->applyTenantScope(Product::query())
                 ->lowStock()
-                ->with(['category', 'shop', 'warehouse'])
+                ->with([
+                    'category:id,category_id,name,status',
+                    'shop:id,shop_id,name,status,address',
+                    'warehouse:id,warehouse_id,name,status,address'
+                ])
                 ->limit(20)
                 ->get(),
             'out_of_stock' => $this->applyTenantScope(Product::query())
                 ->outOfStock()
-                ->with(['category', 'shop', 'warehouse'])
+                ->with([
+                    'category:id,category_id,name,status',
+                    'shop:id,shop_id,name,status,address',
+                    'warehouse:id,warehouse_id,name,status,address'
+                ])
                 ->limit(20)
                 ->get(),
             'needs_reorder' => $this->applyTenantScope(Product::query())
                 ->needReorder()
-                ->with(['category', 'shop', 'warehouse'])
+                ->with([
+                    'category:id,category_id,name,status',
+                    'shop:id,shop_id,name,status,address',
+                    'warehouse:id,warehouse_id,name,status,address'
+                ])
                 ->limit(20)
                 ->get(),
             'overstocked' => $this->applyTenantScope(Product::query())
                 ->whereRaw('stock_quantity > max_stock_level')
                 ->whereNotNull('max_stock_level')
-                ->with(['category', 'shop', 'warehouse'])
+                ->with([
+                    'category:id,category_id,name,status',
+                    'shop:id,shop_id,name,status,address',
+                    'warehouse:id,warehouse_id,name,status,address'
+                ])
                 ->limit(20)
                 ->get()
         ];

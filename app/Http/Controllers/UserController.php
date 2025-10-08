@@ -95,9 +95,12 @@ class UserController extends BaseController
 
 
 
-        // Load relationships
-
-        $query->with(['warehouse', 'shop', 'customerProfile']);
+        // Optimize with eager loading and specific columns
+        $query->with([
+            'warehouse:id,warehouse_id,name,status,address',
+            'shop:id,shop_id,name,status,address',
+            'customerProfile:id,customer_id,phone_number,address,date_of_birth,gender,customer_tier,loyalty_points'
+        ]);
 
 
 
@@ -265,8 +268,11 @@ class UserController extends BaseController
 
 
             // Load relationships for response
-
-            $user->load(['warehouse', 'shop', 'customerProfile']);
+            $user->load([
+                'warehouse:id,warehouse_id,name,status,address',
+                'shop:id,shop_id,name,status,address',
+                'customerProfile:id,customer_id,phone_number,address,date_of_birth,gender,customer_tier,loyalty_points'
+            ]);
 
             // Create custom response with target tenant info
             return response()->json([
@@ -312,9 +318,11 @@ class UserController extends BaseController
 
 
         $user = $this->applyTenantScope(User::query())
-
-            ->with(['warehouse', 'shop', 'customerProfile'])
-
+            ->with([
+                'warehouse:id,warehouse_id,name,status,address',
+                'shop:id,shop_id,name,status,address',
+                'customerProfile:id,customer_id,phone_number,address,date_of_birth,gender,customer_tier,loyalty_points'
+            ])
             ->find($id);
 
 
@@ -516,7 +524,11 @@ class UserController extends BaseController
 
 
 
-            $user->load(['warehouse', 'shop', 'customerProfile']);
+            $user->load([
+                'warehouse:id,warehouse_id,name,status,address',
+                'shop:id,shop_id,name,status,address',
+                'customerProfile:id,customer_id,phone_number,address,date_of_birth,gender,customer_tier,loyalty_points'
+            ]);
 
 
 

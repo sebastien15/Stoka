@@ -178,8 +178,13 @@ class TenantController extends BaseController
             return $this->errorResponse('Tenant not found', 404);
         }
 
-        // Load additional statistics
-        $tenant->load(['users', 'warehouses', 'shops', 'products']);
+        // Optimize with eager loading and specific columns
+        $tenant->load([
+            'users:id,user_id,full_name,email,role,is_active',
+            'warehouses:id,warehouse_id,name,status,address',
+            'shops:id,shop_id,name,status,address',
+            'products:id,product_id,name,sku,status,stock_quantity'
+        ]);
         
         $stats = [
             'users_count' => $tenant->users()->count(),

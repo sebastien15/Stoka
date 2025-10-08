@@ -33,7 +33,8 @@ class RoleController extends BaseController
             $query->where('is_system_role', $request->boolean('is_system_role'));
         }
 
-        $query->with('permissions');
+        // Optimize with eager loading and specific columns
+        $query->with('permissions:id,permission_id,name,display_name,description');
         return $this->paginatedResponse($query, $request, 'Roles retrieved successfully');
     }
 
@@ -69,7 +70,7 @@ class RoleController extends BaseController
             $this->logActivity('role_created', 'roles', $role->role_id, ['role' => $role->toArray()]);
             DB::commit();
 
-            $role->load('permissions');
+            $role->load('permissions:id,permission_id,name,display_name,description');
             return $this->successResponse($role, 'Role created successfully', 201);
         } catch (\Exception $e) {
             DB::rollback();
@@ -82,7 +83,7 @@ class RoleController extends BaseController
         $this->requirePermission('roles.view');
         $this->requireTenant();
 
-        $role = Role::with('permissions')->find($id);
+        $role = Role::with('permissions:id,permission_id,name,display_name,description')->find($id);
         if (!$role) {
             return $this->errorResponse('Role not found', 404);
         }
@@ -132,7 +133,7 @@ class RoleController extends BaseController
 
             DB::commit();
 
-            $role->load('permissions');
+            $role->load('permissions:id,permission_id,name,display_name,description');
             return $this->successResponse($role, 'Role updated successfully');
         } catch (\Exception $e) {
             DB::rollback();
@@ -175,7 +176,7 @@ class RoleController extends BaseController
         $this->requirePermission('roles.view');
         $this->requireTenant();
 
-        $role = Role::with('permissions')->find($id);
+        $role = Role::with('permissions:id,permission_id,name,display_name,description')->find($id);
         if (!$role) {
             return $this->errorResponse('Role not found', 404);
         }
@@ -220,7 +221,7 @@ class RoleController extends BaseController
                 'new_permissions' => $role->getPermissions()
             ]);
             DB::commit();
-            $role->load('permissions');
+            $role->load('permissions:id,permission_id,name,display_name,description');
             return $this->successResponse($role, 'Role permissions updated successfully');
         } catch (\Exception $e) {
             DB::rollback();

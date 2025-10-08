@@ -22,14 +22,17 @@ class CustomerController extends BaseController
         // $this->requirePermission('customers.view');
         $this->requireTenant();
 
-        // Get customers with their profiles
+        // Optimize with eager loading and specific columns
         $query = User::where('role', 'customer')
             ->where('tenant_id', $this->tenant->tenant_id)
-            ->with(['customerProfile', 'orders' => function($q) {
-                $q->select('order_id', 'customer_id', 'total_amount', 'status', 'created_at')
-                  ->orderBy('created_at', 'desc')
-                  ->limit(5);
-            }]);
+            ->with([
+                'customerProfile:id,customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent',
+                'orders' => function($q) {
+                    $q->select('order_id', 'customer_id', 'total_amount', 'status', 'created_at')
+                      ->orderBy('created_at', 'desc')
+                      ->limit(5);
+                }
+            ]);
 
         // Apply filters
         $query = $this->applyFilters($query, $request, [
@@ -177,7 +180,7 @@ class CustomerController extends BaseController
             DB::commit();
 
             // Load relationships for response
-            $customer->load(['customerProfile']);
+            $customer->load(['customerProfile:id,customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent']);
 
             return $this->successResponse($customer, 'Customer created successfully', 201);
 
@@ -200,9 +203,10 @@ class CustomerController extends BaseController
             ->where('role', 'customer')
             ->where('tenant_id', $this->tenant->tenant_id)
             ->with([
-                'customerProfile',
+                'customerProfile:id,customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent',
                 'orders' => function($q) {
-                    $q->orderBy('created_at', 'desc');
+                    $q->select('order_id', 'customer_id', 'order_number', 'status', 'total_amount', 'order_date', 'created_at')
+                      ->orderBy('created_at', 'desc');
                 }
             ])
             ->first();
@@ -296,7 +300,7 @@ class CustomerController extends BaseController
 
             DB::commit();
 
-            $customer->load(['customerProfile']);
+            $customer->load(['customerProfile:id,customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent']);
 
             return $this->successResponse($customer, 'Customer updated successfully');
 
@@ -470,7 +474,10 @@ class CustomerController extends BaseController
         }
 
         $orders = $customer->orders()
-            ->with(['orderItems.product'])
+            ->with([
+                'orderItems:id,order_item_id,order_id,product_id,quantity,unit_price,total_price',
+                'orderItems.product:id,product_id,name,sku,status'
+            ])
             ->orderBy('created_at', 'desc')
             ->paginate(15);
 
@@ -543,7 +550,7 @@ class CustomerController extends BaseController
 
             DB::commit();
 
-            $customer->load(['customerProfile']);
+            $customer->load(['customerProfile:id,customer_id,phone_number,address,city,state,country,date_of_birth,gender,customer_tier,loyalty_points,total_orders,total_spent']);
 
             return $this->successResponse($customer, $message);
 

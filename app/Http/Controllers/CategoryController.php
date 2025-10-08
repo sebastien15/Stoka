@@ -38,13 +38,16 @@ class CategoryController extends BaseController
 
         // Include children if requested
         if ($request->has('include_children') && $request->get('include_children')) {
-            $query->with('subcategories');
+            $query->with(['subcategories:id,category_id,parent_category_id,name,status,is_active']);
         }
 
         // Include parent if requested
         if ($request->has('include_parent') && $request->get('include_parent')) {
-            $query->with('parentCategory');
+            $query->with(['parentCategory:id,category_id,name,status,is_active']);
         }
+
+        // Always include product count for performance
+        $query->withCount(['products', 'subcategories']);
 
         return $this->paginatedResponse($query, $request, 'Categories retrieved successfully');
     }
@@ -115,7 +118,12 @@ class CategoryController extends BaseController
         $this->requirePermission('categories.view');
 
         $category = $this->applyTenantScope(Category::query())
-            ->with(['parentCategory', 'subcategories', 'products'])
+            ->with([
+                'parentCategory:id,category_id,name,status,is_active',
+                'subcategories:id,category_id,parent_category_id,name,status,is_active',
+                'products:id,product_id,name,sku,status,selling_price,stock_quantity'
+            ])
+            ->withCount(['products', 'subcategories'])
             ->find($id);
 
         if (!$category) {
@@ -278,7 +286,11 @@ class CategoryController extends BaseController
             return $this->errorResponse('Category not found', 404);
         }
 
-        $children = $category->subcategories()->active()->ordered()->get();
+        $children = $category->subcategories()
+            ->active()
+            ->ordered()
+            ->withCount(['products', 'subcategories'])
+            ->get(['id', 'category_id', 'parent_category_id', 'name', 'status', 'is_active', 'sort_order']);
 
         return $this->successResponse($children, 'Category children retrieved successfully');
     }
@@ -344,7 +356,7 @@ class CategoryController extends BaseController
             'most_used_categories' => $query->withCount('products')
                 ->orderBy('products_count', 'desc')
                 ->limit(5)
-                ->get(['category_id', 'name', 'products_count'])
+                ->get(['category_id', 'name', 'products_count', 'status', 'is_active'])
         ];
 
         return $this->successResponse($stats, 'Category statistics retrieved successfully');

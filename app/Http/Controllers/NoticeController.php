@@ -64,8 +64,8 @@ class NoticeController extends BaseController
             $query->whereDate('publish_date', '<=', $request->get('publish_date_to'));
         }
 
-        // Load relationships
-        $query->with('createdBy');
+        // Optimize with eager loading and specific columns
+        $query->with('createdBy:id,user_id,full_name,email,role');
 
         return $this->paginatedResponse($query, $request, 'Notices retrieved successfully');
     }
@@ -109,7 +109,7 @@ class NoticeController extends BaseController
 
             DB::commit();
 
-            $notice->load('createdBy');
+            $notice->load('createdBy:id,user_id,full_name,email,role');
 
             return $this->successResponse($notice, 'Notice created successfully', 201);
 
@@ -128,7 +128,7 @@ class NoticeController extends BaseController
         $this->requirePermission('notices.view');
 
         $notice = $this->applyTenantScope(NoticeEvent::query())
-            ->with('createdBy')
+            ->with('createdBy:id,user_id,full_name,email,role')
             ->find($id);
 
         if (!$notice) {
@@ -192,7 +192,7 @@ class NoticeController extends BaseController
 
             DB::commit();
 
-            $notice->load('createdBy');
+            $notice->load('createdBy:id,user_id,full_name,email,role');
 
             return $this->successResponse($notice, 'Notice updated successfully');
 
@@ -372,7 +372,7 @@ class NoticeController extends BaseController
         $query = $this->applyTenantScope(NoticeEvent::query())
             ->published()
             ->expiringIn($days)
-            ->with('createdBy');
+            ->with('createdBy:id,user_id,full_name,email,role');
 
         return $this->paginatedResponse($query, $request, 'Expiring notices retrieved successfully');
     }

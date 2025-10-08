@@ -67,8 +67,14 @@ class OrderController extends BaseController
             $query->where('total_amount', '<=', $request->get('max_amount'));
         }
 
-        // Load relationships
-        $query->with(['customer', 'shop', 'warehouse', 'items.product', 'items.variant']);
+        // Load relationships efficiently
+        $query->with([
+            'customer:id,user_id,name,email,phone',
+            'shop:id,shop_id,name,status',
+            'warehouse:id,warehouse_id,name,status',
+            'items.product:id,product_id,name,sku,status',
+            'items.variant:id,variant_id,product_id,name,sku,price'
+        ]);
 
         return $this->paginatedResponse($query, $request, 'Orders retrieved successfully');
     }
@@ -228,7 +234,14 @@ class OrderController extends BaseController
         // $this->requirePermission('orders.view');
 
         $order = $this->applyTenantScope(Order::query())
-            ->with(['customer.customerProfile', 'shop', 'warehouse', 'items.product', 'items.variant'])
+            ->with([
+                'customer:id,user_id,name,email,phone',
+                'customer.customerProfile:id,customer_id,total_orders,total_spent,loyalty_points',
+                'shop:id,shop_id,name,status,address',
+                'warehouse:id,warehouse_id,name,status,address',
+                'items.product:id,product_id,name,sku,status',
+                'items.variant:id,variant_id,product_id,name,sku,price'
+            ])
             ->find($id);
 
         if (!$order) {

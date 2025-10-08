@@ -84,8 +84,15 @@ class ProductController extends BaseController
             $query->where('is_digital', (bool) $request->get('digital'));
         }
 
-        // Load relationships
-        $query->with(['category', 'brand', 'supplier', 'shop', 'warehouse', 'variants']);
+        // Load relationships efficiently
+        $query->with([
+            'category:id,category_id,name,status',
+            'brand:id,brand_id,name,status', 
+            'supplier:id,supplier_id,name,status',
+            'shop:id,shop_id,name,status',
+            'warehouse:id,warehouse_id,name,status',
+            'variants:id,variant_id,product_id,name,sku,price,stock_quantity,status'
+        ]);
 
         return $this->paginatedResponse($query, $request, 'Products retrieved successfully');
     }
@@ -199,16 +206,23 @@ class ProductController extends BaseController
         // $this->requirePermission('products.view');
 
         $product = $this->applyTenantScope(Product::query())
-            ->with(['category', 'brand', 'supplier', 'shop', 'warehouse', 'variants'])
+            ->with([
+                'category:id,category_id,name,status',
+                'brand:id,brand_id,name,status',
+                'supplier:id,supplier_id,name,status,contact_person,email,phone',
+                'shop:id,shop_id,name,status,address',
+                'warehouse:id,warehouse_id,name,status,address',
+                'variants:id,variant_id,product_id,name,sku,price,stock_quantity,status'
+            ])
             ->find($id);
 
         if (!$product) {
             return $this->errorResponse('Product not found', 404);
         }
 
-        // Add additional stats
+        // Add additional stats efficiently
         $product->recent_movements = $product->inventoryMovements()
-            ->with('createdBy')
+            ->with('createdBy:id,user_id,name,email')
             ->latest()
             ->limit(10)
             ->get();

@@ -19,6 +19,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Enable query timing for performance debugging
+        \DB::listen(function ($query) {
+            if ($query->time > 50) { // Log queries taking more than 50ms
+                \Log::info("SLOW QUERY: {$query->time}ms | SQL: {$query->sql}", [
+                    'bindings' => $query->bindings,
+                    'time' => $query->time
+                ]);
+            }
+        });
     }
 }
