@@ -86,11 +86,11 @@ class ProductController extends BaseController
 
         // Load relationships efficiently
         $query->with([
-            'category:id,category_id,name,status',
-            'brand:id,brand_id,name,status', 
-            'supplier:id,supplier_id,name,status',
-            'shop:id,shop_id,name,status',
-            'warehouse:id,warehouse_id,name,status',
+            'category:category_id,name,is_active as status',
+            'brand:brand_id,name,is_active as status', 
+            'supplier:supplier_id,name,is_active as status',
+            'shop:shop_id,name,is_active as status',
+            'warehouse:warehouse_id,name,is_active as status',
             'variants:variant_id,product_id,name,sku,stock_quantity,is_active as status'
         ]);
 
@@ -207,11 +207,11 @@ class ProductController extends BaseController
 
         $product = $this->applyTenantScope(Product::query())
             ->with([
-                'category:id,category_id,name,status',
-                'brand:id,brand_id,name,status',
-                'supplier:id,supplier_id,name,status,contact_person,email,phone',
-                'shop:id,shop_id,name,status,address',
-                'warehouse:id,warehouse_id,name,status,address',
+                'category:category_id,name,is_active as status',
+                'brand:brand_id,name,is_active as status',
+                'supplier:supplier_id,name,is_active as status,contact_person,email,phone',
+                'shop:shop_id,name,is_active as status,address',
+                'warehouse:warehouse_id,name,is_active as status,address',
                 'variants:variant_id,product_id,name,sku,stock_quantity,is_active as status'
             ])
             ->find($id);
