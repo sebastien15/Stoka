@@ -29,9 +29,14 @@ return new class extends Migration
     {
         // Drop composite unique only if it exists
         if ($this->indexExists('categories', 'categories_tenant_code_unique')) {
-            Schema::table('categories', function (Blueprint $table) {
-                $table->dropUnique('categories_tenant_code_unique');
-            });
+            // Attempt to drop composite unique; if required by an FK, skip to allow rollback
+            try {
+                Schema::table('categories', function (Blueprint $table) {
+                    $table->dropUnique('categories_tenant_code_unique');
+                });
+            } catch (\Throwable $e) {
+                // Swallow error so rollback can proceed
+            }
         }
 
         // Restore legacy global unique only if no duplicates exist

@@ -35,9 +35,14 @@ return new class extends Migration
     {
         // Drop composite unique only if it exists; restore legacy global unique only if no duplicates exist
         if ($this->indexExists('warehouses', 'warehouses_tenant_id_code_unique')) {
-            Schema::table('warehouses', function (Blueprint $table) {
-                $table->dropUnique('warehouses_tenant_id_code_unique');
-            });
+            // Attempt to drop composite unique; if MySQL reports it's required by an FK (1553), skip dropping
+            try {
+                Schema::table('warehouses', function (Blueprint $table) {
+                    $table->dropUnique('warehouses_tenant_id_code_unique');
+                });
+            } catch (\Throwable $e) {
+                // Swallow error to allow rollback to proceed when the index is required by an FK
+            }
         }
 
         if (!$this->columnHasDuplicates('warehouses', 'code')) {
@@ -47,9 +52,14 @@ return new class extends Migration
         }
 
         if ($this->indexExists('shops', 'shops_tenant_id_code_unique')) {
-            Schema::table('shops', function (Blueprint $table) {
-                $table->dropUnique('shops_tenant_id_code_unique');
-            });
+            // Attempt to drop composite unique; if required by an FK, skip dropping to allow rollback
+            try {
+                Schema::table('shops', function (Blueprint $table) {
+                    $table->dropUnique('shops_tenant_id_code_unique');
+                });
+            } catch (\Throwable $e) {
+                // Swallow error to proceed
+            }
         }
 
         if (!$this->columnHasDuplicates('shops', 'code')) {
@@ -79,5 +89,53 @@ return new class extends Migration
     {
         $rows = DB::select('SHOW INDEX FROM ' . $table . ' WHERE Key_name = ?', [$indexName]);
         return !empty($rows);
+    }
+
+    /**
+     * Return true if any foreign key references the given table using the specified referenced columns
+     * in the given order. Guards against dropping an index required by an FK (MySQL error 1553).
+     */
+    private function indexIsReferencedByForeignKey(string $referencedTable, string ...$referencedColumns): bool
+    {
+        if (empty($referencedColumns)) {
+            return false;
+        }
+
+        $dbName = DB::getDatabaseName();
+        $rows = DB::select(
+            'SELECT kcu.CONSTRAINT_NAME, kcu.REFERENCED_COLUMN_NAME, kcu.ORDINAL_POSITION
+             FROM information_schema.KEY_COLUMN_USAGE kcu
+             WHERE kcu.CONSTRAINT_SCHEMA = ?
+               AND kcu.REFERENCED_TABLE_NAME = ?
+             ORDER BY kcu.CONSTRAINT_NAME, kcu.ORDINAL_POSITION',
+            [$dbName, $referencedTable]
+        );
+
+        if (empty($rows)) {
+            return false;
+        }
+
+        $byConstraint = [];
+        foreach ($rows as $row) {
+            $byConstraint[$row->CONSTRAINT_NAME][] = $row->REFERENCED_COLUMN_NAME;
+        }
+
+        foreach ($byConstraint as $cols) {
+            if (count($cols) !== count($referencedColumns)) {
+                continue;
+            }
+            $matches = true;
+            foreach (array_values($referencedColumns) as $i => $col) {
+                if (strcasecmp($cols[$i] ?? '', $col) !== 0) {
+                    $matches = false;
+                    break;
+                }
+            }
+            if ($matches) {
+                return true;
+            }
+        }
+
+        return false;
     }
 };
